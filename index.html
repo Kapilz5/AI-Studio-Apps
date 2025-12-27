@@ -17,13 +17,20 @@
     <link rel="icon" type="image/png" sizes="32x32" href="https://img.icons8.com/fluency/32/wallet.png">
     <link rel="icon" type="image/png" sizes="16x16" href="https://img.icons8.com/fluency/16/wallet.png">
     
-    <!-- iOS Splash Screens (Generic high-quality wallet placeholder) -->
+    <!-- iOS Splash Screens -->
     <link rel="apple-touch-startup-image" href="https://img.icons8.com/fluency/512/wallet.png">
 
     <link rel="manifest" href="manifest.json">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+      // Shim for process.env to prevent "process is not defined" errors in browser
+      window.process = {
+        env: {
+          API_KEY: "" // Will be injected by the environment
+        }
+      };
+      
       tailwind.config = {
         darkMode: 'class',
         theme: {
@@ -81,13 +88,11 @@
             background: #475569;
         }
         
-        /* Interactive Polish */
         button, a {
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* iOS Specific Native Feel */
         * {
             -webkit-touch-callout: none;
             -webkit-user-select: none;
@@ -116,5 +121,7 @@
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
     <div id="root"></div>
+    <!-- Entry point script -->
+    <script type="module" src="index.tsx"></script>
 </body>
 </html>
