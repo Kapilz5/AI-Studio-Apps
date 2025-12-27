@@ -11,6 +11,7 @@ import SettingsModal from './components/SettingsModal';
 import { UI_STRINGS } from './locales/en';
 
 type ViewMode = 'Dashboard' | 'Explorer';
+type ActiveFilter = 'none' | 'near' | 'furthest';
 
 const App: React.FC = () => {
   const [cards, setCards] = useState<CreditCard[]>([]);
@@ -20,9 +21,8 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('Dashboard');
   const [sortOrder, setSortOrder] = useState<'age' | 'expiry' | 'limit'>('age');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterExpiring, setFilterExpiring] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('none');
   const [notificationPeriod, setNotificationPeriodState] = useState(getNotificationPeriod());
-  const [showConflictModal, setShowConflictModal] = useState(false);
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   
   const [isAppLocked, setIsAppLocked] = useState(true);
@@ -118,22 +118,25 @@ const App: React.FC = () => {
 
   const totalLimit = useMemo(() => cards.reduce((sum, c) => sum + (Number(c.creditLimit) || 0), 0), [cards]);
 
-  const expiringSoonCount = useMemo(() => {
+  const nearExpiryInfo = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
 
-    return cards.filter(card => {
+    const matches = cards.filter(card => {
         const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
         return monthDiff >= 0 && monthDiff <= notificationPeriod;
-    }).length;
+    });
+
+    return {
+      count: matches.length,
+      sampleName: matches.length === 1 ? matches[0].name : null,
+      cards: matches
+    };
   }, [cards, notificationPeriod]);
 
-  // FIX: Identify multiple cards sharing the maximum expiry date
   const furthestExpiryInfo = useMemo(() => {
     if (cards.length === 0) return null;
-    
-    // Sort to find the absolute maximum date
     const sorted = [...cards].sort((a, b) => {
       if (a.expiryYear !== b.expiryYear) return b.expiryYear - a.expiryYear;
       return b.expiryMonth - a.expiryMonth;
@@ -144,10 +147,11 @@ const App: React.FC = () => {
     
     return {
       count: tiedCards.length,
-      sampleName: maxCard.name,
+      sampleName: tiedCards.length === 1 ? maxCard.name : null,
       month: maxCard.expiryMonth,
       year: maxCard.expiryYear,
-      sampleId: maxCard.id
+      sampleId: maxCard.id,
+      cards: tiedCards
     };
   }, [cards]);
 
@@ -162,14 +166,10 @@ const App: React.FC = () => {
       );
     }
     
-    if (filterExpiring) {
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
-      filtered = filtered.filter(card => {
-        const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
-        return monthDiff >= 0 && monthDiff <= notificationPeriod;
-      });
+    if (activeFilter === 'near') {
+      filtered = nearExpiryInfo.cards;
+    } else if (activeFilter === 'furthest' && furthestExpiryInfo) {
+      filtered = furthestExpiryInfo.cards;
     }
 
     return [...filtered].sort((a, b) => {
@@ -180,17 +180,10 @@ const App: React.FC = () => {
       }
       return Number(b.id) - Number(a.id);
     });
-  }, [cards, searchTerm, sortOrder, filterExpiring, notificationPeriod]);
+  }, [cards, searchTerm, sortOrder, activeFilter, nearExpiryInfo, furthestExpiryInfo]);
 
-  const handleHighlightCard = (id: string) => {
-    setHighlightedCardId(id);
-    setSearchTerm('');
-    setFilterExpiring(false);
-    setTimeout(() => {
-      const el = document.getElementById(`card-${id}`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => setHighlightedCardId(null), 3000);
-    }, 100);
+  const toggleFilter = (filter: ActiveFilter) => {
+    setActiveFilter(prev => prev === filter ? 'none' : filter);
   };
 
   if (isAppLocked || isSetupRequired) {
@@ -252,8 +245,8 @@ const App: React.FC = () => {
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               <div 
-                onClick={() => { setFilterExpiring(false); setSortOrder('age'); }}
-                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between group transition-all cursor-pointer active:scale-95 ${!filterExpiring && sortOrder === 'age' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 ring-2 ring-blue-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}
+                onClick={() => { setActiveFilter('none'); setSortOrder('age'); }}
+                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between group transition-all cursor-pointer active:scale-95 ${activeFilter === 'none' && sortOrder === 'age' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 ring-2 ring-blue-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}
               >
                 <div>
                   <div className="w-10 h-10 bg-blue-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
@@ -265,29 +258,30 @@ const App: React.FC = () => {
               </div>
               
               <div 
-                onClick={() => expiringSoonCount > 0 && setFilterExpiring(!filterExpiring)}
-                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between relative transition-all active:scale-95 ${filterExpiring ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-500 ring-2 ring-rose-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'} ${expiringSoonCount > 0 ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-700' : 'opacity-60'}`}
+                onClick={() => nearExpiryInfo.count > 0 && toggleFilter('near')}
+                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between relative transition-all active:scale-95 ${activeFilter === 'near' ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-500 ring-2 ring-rose-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'} ${nearExpiryInfo.count > 0 ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-700' : 'opacity-60'}`}
               >
                 <div>
                   <div className="w-10 h-10 bg-rose-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-rose-500/20">
                     <AlertTriangle size={20} />
                   </div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Near Expiry</p>
-                  <div className="flex items-baseline gap-2">
-                    <p className={`text-2xl md:text-3xl font-black ${expiringSoonCount > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>{expiringSoonCount}</p>
-                    {expiringSoonCount > 0 && (
-                      <span className="flex items-center gap-1 bg-rose-100 dark:bg-rose-900/40 text-rose-600 text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse">
-                         ALERT
+                  <div className="truncate">
+                    <p className={`text-xl md:text-2xl font-black truncate ${nearExpiryInfo.count > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>
+                      {nearExpiryInfo.sampleName || (nearExpiryInfo.count > 0 ? `${nearExpiryInfo.count} Cards` : 'None')}
+                    </p>
+                    {nearExpiryInfo.count > 0 && (
+                      <span className="flex items-center gap-1 text-[9px] font-black uppercase text-rose-500 tracking-widest mt-1">
+                         CRITICAL WINDOW
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* UPDATED Furthest Expiry Widget */}
               <div 
-                onClick={() => furthestExpiryInfo && handleHighlightCard(furthestExpiryInfo.sampleId)}
-                className={`p-6 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between transition-all hover:border-purple-300 dark:hover:border-purple-700 cursor-pointer active:scale-95`}
+                onClick={() => furthestExpiryInfo && toggleFilter('furthest')}
+                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between transition-all active:scale-95 ${activeFilter === 'furthest' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500 ring-2 ring-purple-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'} ${furthestExpiryInfo ? 'cursor-pointer hover:border-purple-300 dark:hover:border-purple-700' : 'opacity-60'}`}
               >
                 <div>
                   <div className="w-10 h-10 bg-purple-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-purple-500/20">
@@ -297,7 +291,7 @@ const App: React.FC = () => {
                   <div className="truncate">
                     <p className="text-lg md:text-xl font-black text-slate-900 dark:text-white truncate">
                       {furthestExpiryInfo 
-                        ? (furthestExpiryInfo.count > 1 ? `${furthestExpiryInfo.count} Cards` : furthestExpiryInfo.sampleName) 
+                        ? (furthestExpiryInfo.sampleName || `${furthestExpiryInfo.count} Cards`) 
                         : '--'}
                     </p>
                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mt-1">
@@ -344,13 +338,13 @@ const App: React.FC = () => {
                     <ArrowUpDown size={16} className="text-blue-500" />
                     <span>Sorted by: {sortOrder === 'age' ? 'Newest' : sortOrder === 'expiry' ? 'Expiry' : 'Limit'}</span>
                   </button>
-                  {filterExpiring && (
+                  {activeFilter !== 'none' && (
                     <button 
-                      onClick={() => setFilterExpiring(false)}
-                      className="flex items-center gap-2 px-6 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-rose-500/30 transition-all active:scale-95"
+                      onClick={() => setActiveFilter('none')}
+                      className="flex items-center gap-2 px-6 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95"
                     >
                       <X size={16} />
-                      <span>Clear Expiry Filter</span>
+                      <span>Clear Filter: {activeFilter}</span>
                     </button>
                   )}
                </div>
@@ -359,16 +353,16 @@ const App: React.FC = () => {
             {sortedCards.length === 0 ? (
                <div className="py-24 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-inner">
                   <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800/50 text-slate-300 rounded-full flex items-center justify-center mb-6">
-                    {filterExpiring ? <AlertTriangle size={48} /> : <CardIcon size={48} />}
+                    {activeFilter !== 'none' ? <AlertTriangle size={48} /> : <CardIcon size={48} />}
                   </div>
                   <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {filterExpiring ? 'No Expiring Cards' : 'Your Vault is Clean'}
+                    {activeFilter !== 'none' ? 'No Filtered Cards' : 'Your Vault is Clean'}
                   </h3>
                   <p className="text-slate-500 dark:text-slate-400 mt-2 mb-8 font-medium max-w-xs mx-auto text-sm">
-                    {filterExpiring ? 'Currently no cards match the near-expiry threshold.' : 'Start your secure card collection by adding your first credit or debit card.'}
+                    {activeFilter !== 'none' ? 'Currently no cards match the selected filter criteria.' : 'Start your secure card collection by adding your first credit or debit card.'}
                   </p>
                   <div className="flex gap-4">
-                    {filterExpiring && <button onClick={() => setFilterExpiring(false)} className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all">View All</button>}
+                    {activeFilter !== 'none' && <button onClick={() => setActiveFilter('none')} className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all">View All</button>}
                     <button onClick={() => setIsFormOpen(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-500/30 active:scale-95 transition-all">
                       Add Card
                     </button>
