@@ -1,5 +1,5 @@
 
-import { Cloud, Database, Fingerprint, Loader2, LogIn, LogOut, Mail, RefreshCw, ShieldAlert, ShieldCheck, Trash2, X, Lock as LockIcon, Shield, Smartphone, Share, Plus, RefreshCcw, CheckCircle2, Bell, BellRing, User, BookOpen, ChevronDown, CheckSquare, Square } from 'lucide-react';
+import { Cloud, Database, Fingerprint, Loader2, LogIn, LogOut, Mail, RefreshCw, ShieldAlert, ShieldCheck, Trash2, X, Lock as LockIcon, Shield, Smartphone, Share, Plus, RefreshCcw, CheckCircle2, Bell, BellRing, User, BookOpen, ChevronDown, CheckSquare, Square, BellPlus, BellOff } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { CreditCard } from '../types';
 import { 
@@ -19,6 +19,7 @@ import {
 } from '../utils/storage';
 import SecurityAuth from './SecurityAuth';
 import { UI_STRINGS } from '../locales/en';
+import { requestPermission } from '../utils/notifications';
 
 interface SettingsModalProps {
   cards: CreditCard[];
@@ -110,6 +111,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
     } finally {
       setIsSyncing(false);
     }
+  };
+  
+  const handleRequestNotifPermission = async () => {
+    const permission = await requestPermission();
+    setNotifPermission(permission);
   };
 
   const handleUpdateNotifPeriod = (period: number) => {
@@ -206,7 +212,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
           {/* Notification Settings */}
           <div className="space-y-4">
             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Smart Alerts</label>
-            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-sm space-y-6">
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-sm space-y-4">
+              {notifPermission === 'default' && (
+                 <button onClick={handleRequestNotifPermission} className="w-full flex items-center justify-center gap-3 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+                    <BellPlus size={16} />
+                    <span>Enable Expiry Notifications</span>
+                 </button>
+              )}
+              {notifPermission === 'denied' && (
+                 <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-500/10 text-rose-400 text-xs font-bold border border-rose-500/20">
+                    <BellOff size={24} className="shrink-0" />
+                    <span>Notifications blocked. Please enable them in your browser settings.</span>
+                 </div>
+              )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 flex items-center justify-center"><BellRing size={20} /></div>

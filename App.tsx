@@ -2,13 +2,14 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2 } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
-import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod } from './utils/storage';
+import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod, removeNotifiedFlag } from './utils/storage';
 import CardItem from './components/CardItem';
 import CardForm from './components/CardForm';
 import BenefitSearch from './components/BenefitSearch';
 import SecurityAuth from './components/SecurityAuth';
 import SettingsModal from './components/SettingsModal';
 import { UI_STRINGS } from './locales/en';
+import { checkAndNotifyForExpiringCards } from './utils/notifications';
 
 type ViewMode = 'Dashboard' | 'Explorer';
 type ActiveFilter = 'none' | 'near' | 'furthest';
@@ -76,6 +77,13 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Effect to run notification checks when app is unlocked or data changes
+  useEffect(() => {
+    if (!isAppLocked && masterKey) {
+        checkAndNotifyForExpiringCards(cards, notificationPeriod);
+    }
+  }, [cards, notificationPeriod, isAppLocked, masterKey]);
+
   const handleUnlockSuccess = useCallback((key: Uint8Array, decryptedCards?: CreditCard[]) => {
     setMasterKey(key);
     isUnlockedRef.current = true;
@@ -87,7 +95,12 @@ const App: React.FC = () => {
   const handleSaveCard = async (data: CardFormData, benefits: Benefit[]) => {
     if (!masterKey) return;
     let updatedCards: CreditCard[];
+
     if (editingCard) {
+      // If expiry date changed, reset the notification flag for this card
+      if (editingCard.expiryMonth !== data.expiryMonth || editingCard.expiryYear !== data.expiryYear) {
+        removeNotifiedFlag(editingCard.id);
+      }
       updatedCards = cards.map(c => c.id === editingCard.id ? { ...c, ...data, benefits } : c);
     } else {
       const newCard: CreditCard = { ...data, id: Date.now().toString(), benefits };
@@ -112,6 +125,8 @@ const App: React.FC = () => {
     const updated = cards.filter(c => c.id !== id);
     setCards(updated);
     await saveCards(updated, masterKey);
+    // Remove any notification flags for the deleted card
+    removeNotifiedFlag(id);
   };
 
   const handleEditCard = (card: CreditCard) => { setEditingCard(card); setIsFormOpen(true); };

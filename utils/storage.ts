@@ -12,6 +12,8 @@ const USER_SESSION_KEY = 'card_strategist_v4_user';
 const BIOMETRICS_ENROLLED_KEY = 'card_strategist_v4_biometrics';
 const CLOUD_SYNC_KEY = 'card_strategist_v4_cloud_mock';
 const NOTIFICATION_PERIOD_KEY = 'card_strategist_v4_notif_period';
+const NOTIFIED_CARDS_EXPIRY_KEY = 'card_strategist_v4_notified_expiry';
+
 
 // --- Hashing ---
 export const hashString = async (str: string): Promise<string> => {
@@ -255,7 +257,12 @@ export const hasStoredData = () => localStorage.getItem(STORAGE_KEY) !== null;
 export const getMPINHash = () => localStorage.getItem(MPIN_HASH_KEY);
 
 export const wipeEverything = () => {
-  localStorage.clear();
+  const keysToWipe = [
+    STORAGE_KEY, MASTER_KEY_MPIN_ENC, MASTER_KEY_SECRET_ENC, MASTER_KEY_BIO_ENC,
+    MPIN_HASH_KEY, SECRET_HASH_KEY, USER_SESSION_KEY, BIOMETRICS_ENROLLED_KEY,
+    CLOUD_SYNC_KEY, NOTIFICATION_PERIOD_KEY, NOTIFIED_CARDS_EXPIRY_KEY
+  ];
+  keysToWipe.forEach(key => localStorage.removeItem(key));
   sessionStorage.clear();
   window.location.reload();
 };
@@ -276,3 +283,20 @@ export const getNotificationPeriod = (): number => {
 export const setNotificationPeriod = (months: number) => {
   localStorage.setItem(NOTIFICATION_PERIOD_KEY, months.toString());
 };
+
+export const getNotifiedCards = (): Record<string, boolean> => {
+  const val = localStorage.getItem(NOTIFIED_CARDS_EXPIRY_KEY);
+  return val ? JSON.parse(val) : {};
+};
+
+export const saveNotifiedCards = (notified: Record<string, boolean>) => {
+  localStorage.setItem(NOTIFIED_CARDS_EXPIRY_KEY, JSON.stringify(notified));
+};
+
+export const removeNotifiedFlag = (cardId: string) => {
+    const notified = getNotifiedCards();
+    if (notified[cardId]) {
+        delete notified[cardId];
+        saveNotifiedCards(notified);
+    }
+}
