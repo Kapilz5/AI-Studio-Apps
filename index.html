@@ -17,6 +17,9 @@
     <link rel="icon" type="image/png" sizes="32x32" href="https://img.icons8.com/fluency/32/wallet.png">
     <link rel="icon" type="image/png" sizes="16x16" href="https://img.icons8.com/fluency/16/wallet.png">
     
+    <!-- iOS Splash Screens (Generic high-quality wallet placeholder) -->
+    <link rel="apple-touch-startup-image" href="https://img.icons8.com/fluency/512/wallet.png">
+
     <link rel="manifest" href="manifest.json">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -34,11 +37,21 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sar: env(safe-area-inset-right);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+        }
         body {
             font-family: 'Inter', sans-serif;
             transition: background-color 0.3s ease, color 0.3s ease;
             overscroll-behavior-y: contain;
-            padding-top: env(safe-area-inset-top);
+            padding-top: var(--sat);
+            background-color: #f8fafc;
+        }
+        .dark body {
+            background-color: #020617;
         }
         .glass {
             background: rgba(255, 255, 255, 0.8);
@@ -47,11 +60,12 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
         .dark .glass {
-            background: rgba(30, 41, 49, 0.8);
+            background: rgba(15, 23, 42, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .card-gradient {
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
         .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
@@ -66,11 +80,14 @@
         .dark .custom-scrollbar::-webkit-scrollbar-thumb {
             background: #475569;
         }
+        
+        /* Interactive Polish */
         button, a {
             touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        /* Prevent text selection and long-press menus for a native feel */
+        /* iOS Specific Native Feel */
         * {
             -webkit-touch-callout: none;
             -webkit-user-select: none;
@@ -79,6 +96,10 @@
         input, textarea {
             -webkit-user-select: text;
             user-select: text;
+        }
+        
+        .safe-bottom {
+            padding-bottom: calc(1.5rem + var(--sab));
         }
     </style>
 <script type="importmap">

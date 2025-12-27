@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CreditCard as CardType } from '../types';
-import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCircle, Eye, EyeOff, Lock, Clock, Plus, X, Check } from 'lucide-react';
+import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCircle, Eye, EyeOff, Lock, Clock, Plus, X, Check, PartyPopper } from 'lucide-react';
 import SecurityAuth from './SecurityAuth';
 
 interface CardItemProps {
@@ -52,6 +52,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     }).format(amount);
   };
 
+  const isWaived = card.waiverTarget > 0 && card.currentSpend >= card.waiverTarget;
   const waiverProgress = card.waiverTarget > 0 ? Math.min(100, (card.currentSpend / card.waiverTarget) * 100) : 0;
 
   const handleStart = (e: React.TouchEvent | React.MouseEvent) => {
@@ -67,7 +68,6 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const deltaX = clientX - startX.current;
     
-    // Only allow left swipe
     if (deltaX <= 0) {
       setSwipeOffset(Math.max(deltaX, maxSwipe));
     } else {
@@ -116,45 +116,10 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     const t = (type || '').toLowerCase();
     const containerClass = "flex items-center justify-center h-7 px-2.5 bg-white rounded-lg shadow-sm border border-white/20";
     
-    if (t.includes('visa')) {
-      return (
-        <div className={containerClass}>
-          <span className="text-[#1a1f71] font-black italic text-[11px] tracking-tighter leading-none">VISA</span>
-        </div>
-      );
-    }
-    if (t.includes('mastercard')) {
-      return (
-        <div className="flex items-center -space-x-2 h-7">
-          <div className="w-5 h-5 rounded-full bg-[#eb001b]" />
-          <div className="w-5 h-5 rounded-full bg-[#f79e1b] opacity-90" />
-        </div>
-      );
-    }
-    if (t.includes('amex') || t.includes('american')) {
-      return (
-        <div className="h-7 w-9 bg-[#016fd0] rounded-lg flex items-center justify-center border border-white/20 shadow-sm overflow-hidden">
-          <span className="text-[9px] font-black text-white italic tracking-tighter">AMEX</span>
-        </div>
-      );
-    }
-    if (t.includes('rupay')) {
-      return (
-        <div className={containerClass}>
-          <div className="text-[10px] font-black italic tracking-tighter leading-none">
-            <span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span>
-          </div>
-        </div>
-      );
-    }
-    if (t.includes('discover')) {
-      return (
-        <div className={containerClass}>
-          <span className="text-[#ff6000] font-black italic text-[9px] tracking-tighter leading-none uppercase">Discover</span>
-        </div>
-      );
-    }
-    
+    if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-[11px] tracking-tighter leading-none">VISA</span></div>;
+    if (t.includes('mastercard')) return <div className="flex items-center -space-x-2 h-7"><div className="w-5 h-5 rounded-full bg-[#eb001b]" /><div className="w-5 h-5 rounded-full bg-[#f79e1b] opacity-90" /></div>;
+    if (t.includes('amex') || t.includes('american')) return <div className="h-7 w-9 bg-[#016fd0] rounded-lg flex items-center justify-center border border-white/20 shadow-sm overflow-hidden"><span className="text-[9px] font-black text-white italic tracking-tighter">AMEX</span></div>;
+    if (t.includes('rupay')) return <div className={containerClass}><div className="text-[10px] font-black italic tracking-tighter leading-none"><span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span></div></div>;
     return <LucideCreditCard size={22} className="text-white/60 drop-shadow-md" />;
   };
 
@@ -164,7 +129,6 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
         <SecurityAuth mode="verify" onSuccess={onAuthSuccess} onCancel={() => setShowAuthModal(false)} />
       )}
 
-      {/* Swipe Delete Action (Behind Card) */}
       <div className="absolute inset-0 flex justify-end items-stretch p-2">
         <button
           onClick={() => { setShowConfirm(true); setSwipeOffset(0); }}
@@ -175,7 +139,6 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
         </button>
       </div>
 
-      {/* Confirmation Overlay */}
       {showConfirm && (
         <div className="absolute inset-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-[2.5rem] border-2 border-rose-100 dark:border-rose-900/50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-200 shadow-2xl">
             <div className="w-14 h-14 bg-rose-50 dark:bg-rose-900/30 text-rose-500 rounded-2xl flex items-center justify-center mb-4">
@@ -184,23 +147,12 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
             <h4 className="text-slate-900 dark:text-white font-black text-xl mb-1">Remove Card?</h4>
             <p className="text-xs text-slate-500 mb-6 font-medium">This will permanently delete this card from your secure vault.</p>
             <div className="flex gap-3 w-full max-w-[240px]">
-                <button 
-                  onClick={() => setShowConfirm(false)} 
-                  className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-                >
-                  <X size={18} className="mx-auto" />
-                </button>
-                <button 
-                  onClick={() => onDelete(card.id)} 
-                  className="flex-1 py-3.5 bg-rose-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-rose-200 dark:shadow-rose-900/20 hover:bg-rose-700 transition-all"
-                >
-                  <Check size={18} className="mx-auto" />
-                </button>
+                <button onClick={() => setShowConfirm(false)} className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"><X size={18} className="mx-auto" /></button>
+                <button onClick={() => onDelete(card.id)} className="flex-1 py-3.5 bg-rose-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-rose-200 dark:shadow-rose-900/20 hover:bg-rose-700 transition-all"><Check size={18} className="mx-auto" /></button>
             </div>
         </div>
       )}
 
-      {/* Interactive Card Surface */}
       <div 
         className={`relative z-10 transition-transform duration-300 ease-out select-none cursor-grab active:cursor-grabbing ${isDragging ? 'transition-none' : ''}`}
         style={{ transform: `translateX(${swipeOffset}px)` }}
@@ -217,15 +169,14 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
               </div>
               <div className="flex flex-col items-end gap-3">
                 <div className="flex items-center gap-2">
+                   {isWaived && (
+                     <div className="bg-emerald-500 text-white p-1.5 rounded-full shadow-lg animate-bounce">
+                       <PartyPopper size={14} />
+                     </div>
+                   )}
                    <span className="text-[10px] font-black bg-white/10 px-2 py-1 rounded-lg uppercase tracking-widest backdrop-blur-md border border-white/10">
                     {card.cardCategory || 'CARD'}
                   </span>
-                  {isSensitiveVisible && (
-                    <div className="flex items-center gap-1.5 bg-emerald-500 text-white px-2 py-1 rounded-lg font-black text-[10px] animate-pulse">
-                      <Clock size={10} />
-                      {revealTimeLeft}s
-                    </div>
-                  )}
                 </div>
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleToggleSensitive(); }}
@@ -269,13 +220,11 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
                 <p className="font-black text-xl">{formatCurrency(card.annualFee)}</p>
               </div>
             </div>
-
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
           </div>
 
           {card.bestOffer && (
-            <div className="bg-amber-50 dark:bg-amber-900/30 mx-8 -mt-4 p-4 rounded-b-[1.5rem] border-x border-b border-amber-100 dark:border-amber-900/50 shadow-sm z-0 flex items-center gap-3 transition-all">
+            <div className="bg-amber-50 dark:bg-amber-900/30 mx-8 -mt-4 p-4 rounded-b-[1.5rem] border-x border-b border-amber-100 dark:border-amber-900/50 shadow-sm z-0 flex items-center gap-3">
               <div className="w-8 h-8 bg-amber-100 dark:bg-amber-800 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
                 <Tag size={14} />
               </div>
@@ -284,28 +233,30 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
           )}
 
           {card.waiverTarget > 0 && (
-            <div className="bg-white dark:bg-slate-900 mx-6 mt-3 p-6 rounded-[2rem] shadow-lg border border-slate-100 dark:border-slate-800 z-0 transition-all hover:border-blue-200">
+            <div className={`mx-6 mt-3 p-6 rounded-[2rem] shadow-lg border z-0 transition-all ${isWaived ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-100 dark:border-emerald-900' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}>
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center space-x-2">
-                  <div className={`p-1.5 rounded-lg ${waiverProgress >= 100 ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
-                    <TrendingUp size={16} />
+                  <div className={`p-1.5 rounded-lg ${isWaived ? 'bg-emerald-500 text-white' : 'bg-blue-50 text-blue-600'}`}>
+                    {isWaived ? <Check size={16} /> : <TrendingUp size={16} />}
                   </div>
-                  <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Waiver Target</span>
+                  <span className={`text-[11px] font-black uppercase tracking-widest ${isWaived ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {isWaived ? 'Fee Waived!' : 'Waiver Target'}
+                  </span>
                 </div>
-                <span className={`text-xs font-black px-3 py-1 rounded-full ${waiverProgress >= 100 ? 'bg-emerald-500 text-white' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                <span className={`text-xs font-black px-3 py-1 rounded-full ${isWaived ? 'bg-emerald-600 text-white' : 'bg-blue-50 text-blue-600'}`}>
                   {Math.round(waiverProgress)}%
                 </span>
               </div>
               <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-4 p-0.5">
                 <div 
-                  className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${waiverProgress >= 100 ? 'bg-emerald-500' : 'bg-blue-600'}`} 
+                  className={`h-full rounded-full transition-all duration-1000 ease-out ${isWaived ? 'bg-emerald-500' : 'bg-blue-600'}`} 
                   style={{ width: `${waiverProgress}%` }} 
                 />
               </div>
               <div className="flex justify-between items-center">
                 <div className="space-y-0.5">
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Progress</p>
-                  <p className="text-sm font-black text-slate-900 dark:text-white">{formatCurrency(card.currentSpend)} / {formatCurrency(card.waiverTarget)}</p>
+                  <p className={`text-sm font-black ${isWaived ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-white'}`}>{formatCurrency(card.currentSpend)} / {formatCurrency(card.waiverTarget)}</p>
                 </div>
                 {onUpdateSpend && (
                   <button onClick={() => { const val = prompt("Enter spend amount to add:"); if (val && !isNaN(Number(val))) onUpdateSpend(card.id, Number(val)); }} className="flex items-center space-x-2 text-xs font-black text-white bg-slate-900 dark:bg-slate-700 px-5 py-2.5 rounded-xl hover:bg-blue-600 transition-all shadow-lg active:scale-95">
