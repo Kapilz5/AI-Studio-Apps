@@ -1,5 +1,5 @@
 
-import { Lock, X, ArrowRight, KeyRound, Loader2, ShieldAlert, LifeBuoy, RefreshCw, Trash2, Fingerprint, CheckCircle2 } from 'lucide-react';
+import { Lock, X, ArrowRight, KeyRound, Loader2, ShieldAlert, LifeBuoy, RefreshCw, Trash2, Fingerprint, CheckCircle2, ShieldCheck } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { 
   setupSecurity, 
@@ -27,9 +27,9 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
   const [secretWord, setSecretWord] = useState('');
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isBioAvailable, setIsBioAvailable] = useState(getBiometricEnrolled());
-  const [showBioEnroll, setShowBioEnroll] = useState(false);
-  const [tempMasterKey, setTempMasterKey] = useState<Uint8Array | null>(null);
+  const [isBioEnrolled, setIsBioEnrolled] = useState(getBiometricEnrolled());
+  const [useBiometricsDuringSetup, setUseBiometricsDuringSetup] = useState(true);
+  const [isBioAvailable, setIsBioAvailable] = useState(false);
 
   useEffect(() => {
     setMode(initialMode);
@@ -38,6 +38,18 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
     setConfirmPin('');
     setSecretWord('');
     
+    // Check if hardware biometrics are available AND not blocked by Permissions Policy
+    if (window.PublicKeyCredential) {
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(available => {
+          setIsBioAvailable(available);
+        })
+        .catch(() => {
+          // If the policy blocks the check, treat as unavailable
+          setIsBioAvailable(false);
+        });
+    }
+
     if (initialMode === 'verify' && getBiometricEnrolled()) {
       handleBiometricUnlock();
     }
@@ -59,23 +71,6 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
     }
   };
 
-  const handleEnrollBio = async () => {
-    setIsProcessing(true);
-    try {
-      const success = await enrollBiometrics(pin);
-      if (success && tempMasterKey) {
-        onSuccess(tempMasterKey);
-      } else if (tempMasterKey) {
-        // Continue even if bio fails
-        onSuccess(tempMasterKey);
-      }
-    } catch (err) {
-      if (tempMasterKey) onSuccess(tempMasterKey);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -88,14 +83,18 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
         if (secretWord.trim().length < 3) throw new Error('Secret Word must be at least 3 characters.');
         
         const masterKey = await setupSecurity(pin, secretWord);
-        setTempMasterKey(masterKey);
         
-        // Check if platform supports biometrics
-        if (window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
-          setShowBioEnroll(true);
-        } else {
-          onSuccess(masterKey);
+        // If user opted for biometrics, trigger the system enrollment now
+        if (useBiometricsDuringSetup && isBioAvailable) {
+          try {
+            await enrollBiometrics(pin);
+          } catch (bioErr: any) {
+            console.warn("Biometric enrollment skipped or failed:", bioErr.message);
+            // We don't block the setup if biometrics fail (e.g. policy block)
+          }
         }
+        
+        onSuccess(masterKey);
       } else if (mode === 'verify') {
         const masterKey = await unlockWithMPIN(pin);
         if (masterKey) {
@@ -128,42 +127,11 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
     }
   };
 
-  if (showBioEnroll) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in duration-300 text-center">
-          <div className="w-24 h-24 bg-emerald-500 text-white rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/30">
-            <Fingerprint size={48} />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-3xl font-black text-white">Faster Access?</h2>
-            <p className="text-slate-400 text-sm font-medium">Enable FaceID or Fingerprint to unlock your vault without typing your MPIN every time.</p>
-          </div>
-          <div className="space-y-4">
-             <button
-              onClick={handleEnrollBio}
-              className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all flex items-center justify-center gap-3"
-             >
-               <Fingerprint size={24} />
-               <span>Enroll Biometrics</span>
-             </button>
-             <button
-              onClick={() => tempMasterKey && onSuccess(tempMasterKey)}
-              className="w-full py-4 text-slate-500 font-bold hover:text-white transition-colors"
-             >
-               Maybe Later
-             </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in duration-300">
         <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-500/40">
+          <div className="w-20 h-20 bg-blue-600 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/40">
             {isProcessing ? <Loader2 size={40} className="animate-spin" /> : 
              mode === 'setup' ? <KeyRound size={40} /> : 
              mode === 'reset' ? <RefreshCw size={40} /> : <Lock size={40} />}
@@ -173,7 +141,7 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
               {mode === 'setup' ? 'Security Setup' : mode === 'reset' ? 'Reset MPIN' : 'App Locked'}
             </h2>
             <p className="text-slate-400 text-sm font-medium px-4 text-center">
-              {mode === 'setup' ? 'Set an MPIN and a Secret Word for recovery.' : 
+              {mode === 'setup' ? 'Set an MPIN and a recovery word to start.' : 
                mode === 'reset' ? 'Confirm your secret word to update your MPIN.' :
                'Unlock your encrypted vault to continue.'}
             </p>
@@ -187,7 +155,7 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Recovery Secret Word</label>
                 <input
                   type="text"
-                  placeholder="e.g. BlueSky77"
+                  placeholder="e.g. FavoriteCity123"
                   value={secretWord}
                   onChange={e => setSecretWord(e.target.value)}
                   className="w-full py-4 px-6 bg-white/5 border border-white/10 rounded-2xl text-white text-center font-bold focus:ring-2 focus:ring-blue-500 outline-none"
@@ -224,6 +192,26 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
                 />
               </div>
             )}
+
+            {mode === 'setup' && isBioAvailable && (
+              <div 
+                className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between cursor-pointer active:scale-95 transition-all group"
+                onClick={() => setUseBiometricsDuringSetup(!useBiometricsDuringSetup)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${useBiometricsDuringSetup ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
+                    <Fingerprint size={18} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-black text-white leading-none">Use Biometrics</p>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">FaceID / TouchID</p>
+                  </div>
+                </div>
+                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${useBiometricsDuringSetup ? 'bg-blue-600 border-blue-600' : 'border-white/20'}`}>
+                   {useBiometricsDuringSetup && <CheckCircle2 size={14} className="text-white" />}
+                </div>
+              </div>
+            )}
           </div>
 
           {error && (
@@ -237,21 +225,21 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
             <button
               type="submit"
               disabled={isProcessing || pin.length < 4}
-              className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+              className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95"
             >
-              <span>{mode === 'setup' ? 'Set Credentials' : mode === 'reset' ? 'Reset Vault' : 'Unlock Now'}</span>
+              <span>{mode === 'setup' ? 'Set Credentials' : mode === 'reset' ? 'Update Vault' : 'Unlock Now'}</span>
               <ArrowRight size={20} />
             </button>
 
-            {mode === 'verify' && isBioAvailable && (
+            {mode === 'verify' && isBioEnrolled && (
               <button
                 type="button"
                 onClick={handleBiometricUnlock}
                 disabled={isProcessing}
-                className="w-full py-4 bg-white/10 text-white rounded-3xl font-black text-sm flex items-center justify-center gap-3 hover:bg-white/20 transition-all border border-white/10"
+                className="w-full py-4 bg-white/10 text-white rounded-3xl font-black text-sm flex items-center justify-center gap-3 hover:bg-white/20 transition-all border border-white/10 active:scale-95"
               >
                 <Fingerprint size={20} className="text-blue-400" />
-                <span>Unlock with Biometrics</span>
+                <span>Unlock with FaceID/TouchID</span>
               </button>
             )}
 
@@ -262,7 +250,7 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
                 className="w-full py-3 text-slate-500 font-bold hover:text-white transition-colors flex items-center justify-center gap-2"
               >
                 <LifeBuoy size={16} />
-                <span>Forgot MPIN?</span>
+                <span>Reset forgotten MPIN</span>
               </button>
             )}
 
@@ -279,20 +267,24 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
                 }}
                 className="w-full py-3 text-slate-500 font-bold hover:text-slate-300 transition-all"
               >
-                Cancel
+                Back
               </button>
             )}
           </div>
         </form>
 
-        <div className="pt-12">
+        <div className="pt-8">
+            <div className="flex items-center justify-center gap-2 text-[10px] font-black text-slate-700 uppercase tracking-widest mb-4">
+              <ShieldCheck size={12} />
+              <span>Local Encryption Only</span>
+            </div>
             <button 
               onClick={() => {
-                if(window.confirm("CRITICAL: Wipe all data? This cannot be undone.")) {
+                if(window.confirm("CRITICAL: This will wipe all local data and credentials. Proceed?")) {
                   wipeEverything();
                 }
               }}
-              className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-slate-700 hover:text-rose-500 transition-colors uppercase tracking-[0.2em]"
+              className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-slate-800 hover:text-rose-500 transition-colors uppercase tracking-[0.2em]"
             >
               <Trash2 size={12} />
               <span>Emergency Reset App</span>

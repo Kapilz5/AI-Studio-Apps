@@ -95,14 +95,15 @@ async function decryptMasterKey(password: string, storageKey: string): Promise<U
 }
 
 // --- Biometric Storage ---
-// Note: In a real production web app without a server, we typically use the MPIN as a surrogate for biometric verification
-// because WebAuthn doesn't return the raw key. We'll store the Master Key encrypted by the MPIN in a special biometric slot.
 export const enrollBiometrics = async (mpin: string) => {
   const masterKey = await unlockWithMPIN(mpin);
   if (!masterKey) return false;
 
   try {
-    // Basic verification check
+    if (!window.navigator.credentials || !window.navigator.credentials.create) {
+        throw new Error("Web Authentication is not supported in this environment.");
+    }
+
     const challenge = window.crypto.getRandomValues(new Uint8Array(32));
     const credential = await navigator.credentials.create({
       publicKey: {
@@ -120,14 +121,17 @@ export const enrollBiometrics = async (mpin: string) => {
     });
 
     if (credential) {
-      // Store Master Key in a biometric-only slot encrypted by a static internal salt
-      // In a real app, this would be more complex, but for local-only, we link it to the successful hardware check.
       await encryptAndStoreMasterKey(masterKey, "bio-internal-secret", MASTER_KEY_BIO_ENC);
       localStorage.setItem(BIOMETRICS_ENROLLED_KEY, 'true');
       return true;
     }
-  } catch (e) {
-    console.error("Biometric enrollment failed:", e);
+  } catch (e: any) {
+    console.error("Biometric enrollment error:", e.name, e.message);
+    // If blocked by policy, we treat it as non-enrollable
+    if (e.name === 'NotAllowedError' || e.message?.includes('policy')) {
+        localStorage.removeItem(BIOMETRICS_ENROLLED_KEY);
+    }
+    throw e;
   }
   return false;
 };
@@ -136,6 +140,9 @@ export const unlockWithBiometrics = async (): Promise<Uint8Array | null> => {
   if (localStorage.getItem(BIOMETRICS_ENROLLED_KEY) !== 'true') return null;
 
   try {
+    if (!window.navigator.credentials || !window.navigator.credentials.get) {
+        return null;
+    }
     const challenge = window.crypto.getRandomValues(new Uint8Array(32));
     const assertion = await navigator.credentials.get({
       publicKey: {
@@ -148,8 +155,11 @@ export const unlockWithBiometrics = async (): Promise<Uint8Array | null> => {
     if (assertion) {
       return await decryptMasterKey("bio-internal-secret", MASTER_KEY_BIO_ENC);
     }
-  } catch (e) {
-    console.error("Biometric verification failed:", e);
+  } catch (e: any) {
+    console.error("Biometric verification error:", e.name, e.message);
+    if (e.name === 'NotAllowedError' || e.message?.includes('policy')) {
+        // Silently fail to fallback to PIN
+    }
   }
   return null;
 };

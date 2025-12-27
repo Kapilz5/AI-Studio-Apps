@@ -1,16 +1,22 @@
 
-const CACHE_NAME = 'my-cards-v1';
+const CACHE_NAME = 'my-cards-ai-v3';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/index.tsx',
-  '/manifest.json'
+  './',
+  './index.html',
+  './manifest.json',
+  './sw.js',
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap',
+  'https://img.icons8.com/fluency/512/wallet.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Use addAll with try/catch to prevent failure if one asset is missing
+      return cache.addAll(ASSETS_TO_CACHE).catch(err => {
+        console.warn('SW: Cache addAll warning', err);
+      });
     })
   );
 });
@@ -18,6 +24,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
+      // Cache-first for speed, fallback to network
       return response || fetch(event.request);
     })
   );
