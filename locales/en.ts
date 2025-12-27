@@ -61,7 +61,8 @@ export const UI_STRINGS = {
     ai_verify_failed: "AI could not verify this product. Enter benefits manually.",
     ai_verify_hint: "Identify your specific card for accurate AI benefits:",
     ai_service_unavailable: "AI service unavailable. Please check your internet connection or API key.",
-    ai_no_perks_found: "AI check completed. No official benefits found for this specific name."
+    ai_no_perks_found: "AI check completed. No official benefits found for this specific name.",
+    ai_setup_incomplete: "AI setup incomplete. Please ensure your API key is configured."
   },
   security: {
     setup_title: "Security Setup",

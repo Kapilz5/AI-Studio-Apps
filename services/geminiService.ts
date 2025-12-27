@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { Benefit, CardCategory } from "../types";
+import { UI_STRINGS } from "../locales/en";
 
 const getAI = () => {
   // Access API key directly from process.env.API_KEY as per guidelines
@@ -8,7 +9,7 @@ const getAI = () => {
   
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
     console.error("Gemini Error: API_KEY is missing or invalid in the environment.");
-    throw new Error("AI Setup Incomplete. Please ensure your API Key is configured.");
+    throw new Error(UI_STRINGS.card_form.ai_setup_incomplete);
   }
   
   return new GoogleGenAI({ apiKey });
