@@ -38,16 +38,15 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     return () => clearInterval(timer);
   }, [isSensitiveVisible, revealTimeLeft]);
 
+  // FIX: Match month-based difference logic with App.tsx
   const expiring = useMemo(() => {
-    // Card expiry is effectively valid until the last day of the month
-    const expiryDate = new Date(card.expiryYear, card.expiryMonth, 0, 23, 59, 59);
     const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
     const period = getNotificationPeriod();
-    const thresholdDate = new Date();
-    thresholdDate.setMonth(now.getMonth() + period);
     
-    // It's expiring if the end of month is within the warning period
-    return expiryDate <= thresholdDate && expiryDate >= now;
+    const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
+    return monthDiff >= 0 && monthDiff <= period;
   }, [card.expiryMonth, card.expiryYear]);
 
   const formatCurrency = (amount: number) => {

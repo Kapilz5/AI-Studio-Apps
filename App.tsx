@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2 } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
 import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod } from './utils/storage';
@@ -29,6 +29,9 @@ const App: React.FC = () => {
   const [isSetupRequired, setIsSetupRequired] = useState(false);
   const [masterKey, setMasterKey] = useState<Uint8Array | null>(null);
   
+  // Use a ref to track current unlocked state for the visibility listener
+  const isUnlockedRef = useRef(false);
+
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') === 'dark' || 
@@ -56,19 +59,19 @@ const App: React.FC = () => {
         setIsSetupRequired(true);
         setIsAppLocked(false);
       } else {
-        // We always start locked on mount or refresh
         setIsAppLocked(true);
       }
     };
 
     checkSecurityStatus();
 
-    // Session Lock: Prompt for PIN/Biometrics whenever user reopens the app
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // Immediately lock and clear master key from memory when app goes to background
+      // ONLY trigger lock if the app was previously unlocked and has a key in memory.
+      // If document becomes hidden and we have a session, we clear it.
+      if (document.visibilityState === 'hidden' && isUnlockedRef.current) {
         setIsAppLocked(true);
         setMasterKey(null);
+        isUnlockedRef.current = false;
       }
     };
 
@@ -80,6 +83,7 @@ const App: React.FC = () => {
 
   const handleUnlockSuccess = useCallback((key: Uint8Array, decryptedCards?: CreditCard[]) => {
     setMasterKey(key);
+    isUnlockedRef.current = true;
     if (decryptedCards) setCards(decryptedCards);
     setIsAppLocked(false);
     setIsSetupRequired(false);
@@ -122,11 +126,12 @@ const App: React.FC = () => {
 
   const expiringSoonCount = useMemo(() => {
     const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+
     return cards.filter(card => {
-        const expiryDate = new Date(card.expiryYear, card.expiryMonth, 0, 23, 59, 59);
-        const diffMs = expiryDate.getTime() - now.getTime();
-        const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
-        return diffMonths >= 0 && diffMonths <= notificationPeriod;
+        const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
+        return monthDiff >= 0 && monthDiff <= notificationPeriod;
     }).length;
   }, [cards, notificationPeriod]);
 
@@ -151,11 +156,11 @@ const App: React.FC = () => {
     
     if (filterExpiring) {
       const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
       filtered = filtered.filter(card => {
-        const expiryDate = new Date(card.expiryYear, card.expiryMonth, 0, 23, 59, 59);
-        const diffMs = expiryDate.getTime() - now.getTime();
-        const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
-        return diffMonths >= 0 && diffMonths <= notificationPeriod;
+        const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
+        return monthDiff >= 0 && monthDiff <= notificationPeriod;
       });
     }
 
@@ -199,9 +204,9 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex-grow max-w-xs md:max-w-sm">
-             <div className="bg-slate-200/50 dark:bg-slate-800/80 p-1 rounded-2xl flex relative h-11 md:h-12 shadow-inner">
+             <div className="bg-slate-200/50 dark:bg-slate-800/80 p-1 rounded-2xl flex relative h-11 md:h-12 shadow-inner border border-slate-300/20 dark:border-slate-700/50">
                 <div 
-                  className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-xl shadow-md transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${viewMode === 'Explorer' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}`}
+                  className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-slate-600 rounded-xl shadow-md transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${viewMode === 'Explorer' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}`}
                 />
                 <button 
                   onClick={() => setViewMode('Dashboard')}
@@ -237,7 +242,6 @@ const App: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         {viewMode === 'Dashboard' ? (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Dashboard Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               <div 
                 onClick={() => { setFilterExpiring(false); setSortOrder('age'); }}
@@ -254,7 +258,7 @@ const App: React.FC = () => {
               
               <div 
                 onClick={() => expiringSoonCount > 0 && setFilterExpiring(!filterExpiring)}
-                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between relative transition-all active:scale-95 ${filterExpiring ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-500 ring-2 ring-rose-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'} ${expiringSoonCount > 0 ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-700' : 'opacity-60 grayscale'}`}
+                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between relative transition-all active:scale-95 ${filterExpiring ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-500 ring-2 ring-rose-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'} ${expiringSoonCount > 0 ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-700' : 'opacity-60'}`}
               >
                 <div>
                   <div className="w-10 h-10 bg-rose-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-rose-500/20">
@@ -306,7 +310,6 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Filter & Search Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                <div className="relative flex-grow max-w-xl">
                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -342,7 +345,6 @@ const App: React.FC = () => {
                </div>
             </div>
 
-            {/* Main Content Area */}
             {sortedCards.length === 0 ? (
                <div className="py-24 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-inner">
                   <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800/50 text-slate-300 rounded-full flex items-center justify-center mb-6">
@@ -376,10 +378,10 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Floating Action Hint */}
-      {cards.length > 0 && viewMode === 'Dashboard' && !isFormOpen && (
+      {/* Security Hint */}
+      {cards.length > 0 && viewMode === 'Dashboard' && !isAppLocked && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-           <div className="bg-slate-900 dark:bg-blue-600 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl shadow-black/20 animate-in slide-in-from-bottom-10 duration-700">
+           <div className="bg-slate-900/90 dark:bg-blue-600/90 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl backdrop-blur-md border border-white/10 animate-in slide-in-from-bottom-10 duration-700">
               <CheckCircle2 size={16} className="text-emerald-400" />
               <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Vault Secured with Local AES-256</span>
            </div>

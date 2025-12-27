@@ -1,5 +1,5 @@
 
-import { Lock, X, ArrowRight, KeyRound, Loader2, ShieldAlert, LifeBuoy, RefreshCw, Trash2, Fingerprint, CheckCircle2, ShieldCheck, ShieldCheck as ShieldIcon } from 'lucide-react';
+import { Lock, X, ArrowRight, KeyRound, Loader2, ShieldAlert, LifeBuoy, RefreshCw, Trash2, Fingerprint, CheckCircle2, ShieldCheck, ShieldCheck as ShieldIcon, Info } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   setupSecurity, 
@@ -32,8 +32,8 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
   const [useBiometricsDuringSetup, setUseBiometricsDuringSetup] = useState(false);
   const [isBioSetupSuccess, setIsBioSetupSuccess] = useState(false);
   const [isBioAvailable, setIsBioAvailable] = useState(false);
+  const [bioHint, setBioHint] = useState<string | null>(null);
   
-  // Guard to prevent double biometric prompt on iPhone
   const bioTriggered = useRef(false);
 
   useEffect(() => {
@@ -43,28 +43,35 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
     setConfirmPin('');
     setSecretWord('');
     
+    // Check if the hardware supports biometrics
     if (window.PublicKeyCredential) {
       PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
         .then(available => {
           setIsBioAvailable(available);
+          
+          // Auto-trigger biometric unlock ONLY if enrolled and in verify mode
+          if (initialMode === 'verify' && getBiometricEnrolled() && available && !bioTriggered.current) {
+            bioTriggered.current = true;
+            setTimeout(() => {
+              handleBiometricUnlock();
+            }, 800);
+          }
         })
         .catch(() => {
           setIsBioAvailable(false);
         });
     }
-
-    // Auto-trigger biometric unlock only once per mount
-    if (initialMode === 'verify' && getBiometricEnrolled() && !bioTriggered.current) {
-      bioTriggered.current = true;
-      const timer = setTimeout(() => {
-        handleBiometricUnlock();
-      }, 1000); // Increased delay for iPhone stability
-      return () => clearTimeout(timer);
-    }
   }, [initialMode]);
 
   const handleBiometricUnlock = async () => {
     if (isProcessing) return;
+    
+    if (!isBioEnrolled) {
+      setBioHint("Unlock with PIN first, then enable biometrics in Vault Settings.");
+      setTimeout(() => setBioHint(null), 5000);
+      return;
+    }
+
     setIsProcessing(true);
     setError('');
     try {
@@ -74,9 +81,9 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
         onSuccess(masterKey, cards);
       }
     } catch (err: any) {
-      // Don't show error if user cancelled the biometric prompt
       if (err.name !== 'NotAllowedError') {
         console.error("Biometric unlock error:", err);
+        setError("Biometric authentication failed.");
       }
     } finally {
       setIsProcessing(false);
@@ -282,6 +289,13 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
             </div>
           )}
 
+          {bioHint && (
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-500/20 animate-in fade-in duration-300">
+              <Info size={16} className="shrink-0" />
+              <span>{bioHint}</span>
+            </div>
+          )}
+
           <div className="space-y-3">
             <button
               type="submit"
@@ -292,15 +306,15 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
               <ArrowRight size={20} />
             </button>
 
-            {mode === 'verify' && isBioEnrolled && (
+            {mode === 'verify' && isBioAvailable && (
               <button
                 type="button"
                 onClick={handleBiometricUnlock}
                 disabled={isProcessing}
-                className="w-full py-4 bg-white/10 text-white rounded-3xl font-black text-sm flex items-center justify-center gap-3 hover:bg-white/20 transition-all border border-white/10 active:scale-95"
+                className={`w-full py-4 rounded-3xl font-black text-sm flex items-center justify-center gap-3 transition-all border active:scale-95 ${isBioEnrolled ? 'bg-white/10 text-white border-white/10 hover:bg-white/20' : 'bg-slate-800/50 text-slate-500 border-slate-700/50 hover:bg-slate-800'}`}
               >
-                <Fingerprint size={20} className="text-blue-400" />
-                <span>{UI_STRINGS.security.unlock_bio_btn}</span>
+                <Fingerprint size={20} className={isBioEnrolled ? 'text-blue-400' : 'text-slate-600'} />
+                <span>{isBioEnrolled ? UI_STRINGS.security.unlock_bio_btn : "Enable FaceID/TouchID"}</span>
               </button>
             )}
 
