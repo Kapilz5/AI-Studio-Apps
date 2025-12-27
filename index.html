@@ -17,9 +17,6 @@
     <link rel="icon" type="image/png" sizes="32x32" href="https://img.icons8.com/fluency/32/wallet.png">
     <link rel="icon" type="image/png" sizes="16x16" href="https://img.icons8.com/fluency/16/wallet.png">
     
-    <!-- iOS Splash Screens -->
-    <link rel="apple-touch-startup-image" href="https://img.icons8.com/fluency/512/wallet.png">
-
     <link rel="manifest" href="manifest.json">
     
     <!-- Google Login Support -->
@@ -27,14 +24,12 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      // QA FIX: Resilient shim for process.env
       if (typeof window.process === 'undefined') {
         window.process = { env: {} };
       }
       if (!window.process.env) {
         window.process.env = {};
       }
-      // Only set empty string if no key exists to prevent overwriting injected keys
       if (typeof window.process.env.API_KEY === 'undefined') {
         window.process.env.API_KEY = "";
       }
@@ -68,12 +63,11 @@
             width: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Prevent double scrollbars on the root */
+            overflow: hidden;
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            transition: background-color 0.3s ease, color 0.3s ease;
             background-color: #f8fafc;
             display: flex;
             flex-direction: column;
@@ -82,7 +76,7 @@
         #root {
             height: 100%;
             width: 100%;
-            overflow-y: auto; /* Root scroll container */
+            overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
 
@@ -95,13 +89,13 @@
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
 
-        /* Improved Scrollbar Visibility */
+        /* Highly Visible Scrollbars */
         .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.03);
+            background: rgba(0, 0, 0, 0.05);
             border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
@@ -111,10 +105,7 @@
             background-clip: content-box;
         }
         .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #334155;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
+            background: #475569;
         }
         
         button, a {
@@ -135,17 +126,6 @@
         .safe-bottom {
             padding-bottom: calc(1.5rem + var(--sab));
         }
-        
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .dark .glass {
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
     </style>
 <script type="importmap">
 {
@@ -159,7 +139,7 @@
 }
 </script>
 </head>
-<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
 </body>

@@ -16,7 +16,7 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3-pro-preview",
       contents: { 
         parts: [{ 
           text: `You are a world-class financial card expert specializing in Indian credit and debit products. 
@@ -30,7 +30,7 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
           2. Each object must strictly match this schema: { "category": string, "detail": string }.
           3. The "category" field MUST be exactly one of: "Shopping", "Food", "Entertainment", "Fuel", "Forex", "Travel", "Other".
           4. The "detail" field should be a concise, professional description of a specific perk (e.g., "5% cashback on Amazon", "Unlimited domestic lounge access").
-          5. If "${cardName}" is NOT a real, recognizable, or valid ${category} card, return [].` 
+          5. If "${cardName}" is NOT a real card, return [].` 
         }] 
       },
       config: {
@@ -62,7 +62,7 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
     return Array.isArray(parsed) ? parsed : [];
   } catch (error: any) {
     console.error(`Gemini fetchCardBenefits Error:`, error.message || error);
-    throw new Error("AI service unavailable. Please check your internet connection and API key.");
+    throw new Error(error.message?.includes("API_KEY") ? "Invalid API Key" : "AI service unavailable. Please check your connection.");
   }
 };
 
@@ -72,8 +72,9 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3-pro-preview",
       contents: `Search for Indian ${category} cards matching: "${userInput}". 
+      If it is a partial match, suggest the closest official full card names available in India.
       Return up to 5 specific product names.
       Format: { "suggestions": ["Name 1", "Name 2"], "message": "Feedback" }`,
       config: {
@@ -102,7 +103,7 @@ export const analyzeCardImages = async (frontBase64: string, backBase64: string)
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3-pro-preview",
       contents: {
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: frontBase64 } },

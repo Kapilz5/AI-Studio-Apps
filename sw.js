@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'my-cards-ai-v3';
+const CACHE_NAME = 'my-cards-ai-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -13,21 +13,12 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Use addAll with try/catch to prevent failure if one asset is missing
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('SW: Cache addAll warning', err);
       });
     })
   );
-});
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Cache-first for speed, fallback to network
-      return response || fetch(event.request);
-    })
-  );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -40,6 +31,25 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    })
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  // Navigation Fallback: Serve index.html for navigation requests to prevent 404s
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('./index.html');
+      })
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
     })
   );
 });

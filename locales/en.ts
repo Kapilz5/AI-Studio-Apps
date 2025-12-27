@@ -43,7 +43,7 @@ export const UI_STRINGS = {
     product_tier: "Product Tier",
     product_name: "Product Name",
     product_name_placeholder: "e.g. HDFC Millennia",
-    check_ai_btn: "Check AI",
+    check_ai_btn: "Check with AI",
     identifier_label: "PAN-Digital Identifier (Number)",
     identifier_placeholder: "0000 0000 0000 0000",
     duplicate_error: "Duplicate card already exists:",
@@ -60,6 +60,8 @@ export const UI_STRINGS = {
     apply_benefits_btn: "Apply Benefits",
     ai_verify_failed: "AI could not verify this product. Enter benefits manually.",
     ai_verify_hint: "Identify your specific card for accurate AI benefits:",
+    ai_service_unavailable: "AI service unavailable. Please check your internet connection or API key.",
+    ai_no_perks_found: "AI check completed. No official benefits found for this specific name."
   },
   security: {
     setup_title: "Security Setup",
