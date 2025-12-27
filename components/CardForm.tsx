@@ -130,7 +130,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         setSuggestions([]);
       }
     } catch (error: any) {
-      setValidationMsg(UI_STRINGS.card_form.ai_service_unavailable);
+      setValidationMsg(error.message || UI_STRINGS.card_form.ai_service_unavailable);
       setSuggestions([]);
     } finally {
       setIsFetching(false);

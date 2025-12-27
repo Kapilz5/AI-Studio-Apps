@@ -6,8 +6,8 @@ import { Benefit, CardCategory } from "../types";
 const getAI = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey || apiKey === "") {
-    console.error("CRITICAL: API_KEY is missing from environment. Please verify your project settings.");
-    throw new Error("API Key Missing. Check your project environment variables.");
+    console.error("CRITICAL: API_KEY is missing from environment variables.");
+    throw new Error("API Key Missing. Please check your project settings.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -16,7 +16,7 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: { 
         parts: [{ 
           text: `You are a world-class financial card expert specializing in Indian credit and debit products. 
@@ -72,9 +72,9 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: `Search for Indian ${category} cards matching: "${userInput}". 
-      If it is a partial match, suggest the closest official full card names available in India.
+      If it is a partial match, suggest the closest official full card names available in India (e.g. HDFC Millennia, ICICI Amazon Pay, Axis Ace).
       Return up to 5 specific product names.
       Format: { "suggestions": ["Name 1", "Name 2"], "message": "Feedback" }`,
       config: {
@@ -103,7 +103,7 @@ export const analyzeCardImages = async (frontBase64: string, backBase64: string)
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: {
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: frontBase64 } },
