@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { CreditCard, BenefitCategory } from '../types';
 import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
 import { Search, ChevronRight, Trophy, Sparkles, Star, CreditCard as LucideCreditCard, AlertCircle } from 'lucide-react';
+import { UI_STRINGS } from '../locales/en';
 
 interface BenefitSearchProps {
   cards: CreditCard[];
@@ -62,69 +63,27 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
 
   const renderBrandLogo = (type?: string) => {
     const t = (type || '').toLowerCase();
-    
     const containerClass = "w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg rotate-3 group-hover:rotate-0 transition-transform overflow-hidden bg-white border border-slate-100 dark:border-slate-800";
 
-    if (t.includes('visa')) {
-      return (
-        <div className={containerClass}>
-          <span className="text-[#1a1f71] font-black italic text-[10px] tracking-tighter leading-none">VISA</span>
-        </div>
-      );
-    }
-    if (t.includes('mastercard')) {
-      return (
-        <div className={containerClass}>
-          <div className="flex -space-x-1.5 items-center">
-            <div className="w-3.5 h-3.5 rounded-full bg-[#eb001b]" />
-            <div className="w-3.5 h-3.5 rounded-full bg-[#f79e1b] opacity-90" />
-          </div>
-        </div>
-      );
-    }
-    if (t.includes('amex') || t.includes('american')) {
-      return (
-        <div className={`${containerClass} bg-[#016fd0] border-white/20`}>
-          <span className="text-[7px] font-black text-white italic">AMEX</span>
-        </div>
-      );
-    }
-    if (t.includes('rupay')) {
-      return (
-        <div className={containerClass}>
-          <div className="text-[8px] font-black italic tracking-tighter leading-none">
-            <span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span>
-          </div>
-        </div>
-      );
-    }
-    if (t.includes('discover')) {
-      return (
-        <div className={containerClass}>
-          <span className="text-[#ff6000] font-black italic text-[8px] tracking-tighter leading-none uppercase">Disc</span>
-        </div>
-      );
-    }
-    
-    return (
-      <div className={`${containerClass} card-gradient border-none`}>
-        <LucideCreditCard size={18} className="text-white/80" />
-      </div>
-    );
+    if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-[10px] tracking-tighter leading-none">VISA</span></div>;
+    if (t.includes('mastercard')) return <div className={containerClass}><div className="flex -space-x-1.5 items-center"><div className="w-3.5 h-3.5 rounded-full bg-[#eb001b]" /><div className="w-3.5 h-3.5 rounded-full bg-[#f79e1b] opacity-90" /></div></div>;
+    if (t.includes('amex') || t.includes('american')) return <div className={`${containerClass} bg-[#016fd0] border-white/20`}><span className="text-[7px] font-black text-white italic">AMEX</span></div>;
+    if (t.includes('rupay')) return <div className={containerClass}><div className="text-[8px] font-black italic tracking-tighter leading-none"><span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span></div></div>;
+    return <div className={`${containerClass} card-gradient border-none`}><LucideCreditCard size={18} className="text-white/80" /></div>;
   };
 
   return (
     <div className="space-y-8 pb-10">
-      <div className="space-y-2">
-        <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">Reward Explorer</h2>
-        <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">Pick the optimal card for your current purchase.</p>
+      <div className="space-y-2 text-left">
+        <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">{UI_STRINGS.benefits_explorer.title}</h2>
+        <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">{UI_STRINGS.benefits_explorer.subtitle}</p>
       </div>
 
       <div className="relative group">
         <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={24} />
         <input
           type="text"
-          placeholder="Search rewards (e.g., 'Amazon', 'Lounge', '10%')..."
+          placeholder={UI_STRINGS.benefits_explorer.search_placeholder}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-14 pr-6 py-6 rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all dark:text-white text-xl font-bold"
@@ -144,7 +103,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
                 <div className="flex-grow text-center md:text-left space-y-2">
                    <div className="flex items-center justify-center md:justify-start gap-2">
                       <Sparkles size={14} className="text-yellow-300" />
-                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-100">AI Top Recommendation</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-100">{UI_STRINGS.benefits_explorer.ai_recommendation}</p>
                    </div>
                    <h3 className="text-3xl font-black tracking-tight">{bestCardForSelected.card.name}</h3>
                    <p className="text-base font-bold text-blue-50 leading-relaxed max-w-xl">{bestCardForSelected.benefit.detail}</p>
@@ -152,7 +111,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
                 <div className="shrink-0">
                    <div className="flex items-center gap-2 bg-black/30 px-6 py-3 rounded-2xl border border-white/10 backdrop-blur-md">
                       <Star size={16} className="text-yellow-400 fill-yellow-400" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Premium Pick</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">{UI_STRINGS.benefits_explorer.premium_pick}</span>
                    </div>
                 </div>
              </div>
@@ -160,8 +119,10 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
              <div className="p-10 rounded-[3rem] bg-slate-100 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center gap-4">
                 <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-3xl flex items-center justify-center text-slate-300 shadow-sm"><AlertCircle size={32} /></div>
                 <div className="space-y-1">
-                   <p className="text-lg font-black text-slate-900 dark:text-white">No {selectedCategory} Rewards</p>
-                   <p className="text-sm text-slate-500 font-medium">Add cards with {selectedCategory.toLowerCase()} benefits to see them here.</p>
+                   <p className="text-lg font-black text-slate-900 dark:text-white">
+                    {UI_STRINGS.benefits_explorer.empty_category.replace('{category}', selectedCategory)}
+                   </p>
+                   <p className="text-sm text-slate-500 font-medium">{UI_STRINGS.benefits_explorer.no_results_subtitle}</p>
                 </div>
              </div>
            )}
@@ -178,7 +139,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
                 : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-200'
             }`}
             >
-            All Categories
+            {UI_STRINGS.benefits_explorer.all_categories}
             </button>
             {CATEGORIES.map(cat => (
             <button
@@ -200,7 +161,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredBenefits.length > 0 ? (
           filteredBenefits.map((item, idx) => (
-            <div key={`${item.cardId}-${idx}`} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col hover:shadow-2xl hover:-translate-y-2 transition-all group">
+            <div key={`${item.cardId}-${idx}`} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col hover:shadow-2xl hover:-translate-y-2 transition-all group text-left">
               <div className="flex justify-between items-start mb-6">
                 <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-xl shadow-sm ${CATEGORY_COLORS[item.category]}`}>
                   {item.category}
@@ -229,8 +190,8 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
             <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-slate-200 dark:text-slate-700">
                <Search size={48} />
             </div>
-            <h4 className="text-2xl font-black text-slate-900 dark:text-white mb-2">No Matches Found</h4>
-            <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm mx-auto">We couldn't find any benefits matching your search. Try adjusting filters or search terms.</p>
+            <h4 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{UI_STRINGS.benefits_explorer.no_results_title}</h4>
+            <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm mx-auto">{UI_STRINGS.benefits_explorer.no_results_subtitle}</p>
           </div>
         )}
       </div>

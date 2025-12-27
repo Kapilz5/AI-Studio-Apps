@@ -4,6 +4,7 @@ import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
 import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search } from 'lucide-react';
 import CardScanner from './CardScanner';
+import { UI_STRINGS } from '../locales/en';
 
 interface CardFormProps {
   onSave: (data: CardFormData, benefits: Benefit[]) => void;
@@ -12,7 +13,9 @@ interface CardFormProps {
   cards: CreditCard[];
 }
 
-const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, cards }) => {
+const getNormalizedNumber = (num: string) => num.replace(/[\s-]/g, '');
+
+const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, cards = [] }) => {
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingBenefits, setPendingBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
@@ -68,12 +71,12 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   }, [initialData]);
 
   const duplicateCard = useMemo(() => {
-    const currentNum = formData.fullNumber.replace(/\s/g, '');
+    const currentNum = getNormalizedNumber(formData.fullNumber);
     if (!currentNum || currentNum.length < 4) return null;
     
     return cards.find(c => {
       if (initialData && c.id === initialData.id) return false;
-      return c.fullNumber.replace(/\s/g, '') === currentNum;
+      return getNormalizedNumber(c.fullNumber) === currentNum;
     });
   }, [formData.fullNumber, cards, initialData]);
 
@@ -93,12 +96,12 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
           setSuggestions(result.suggestions);
           
           if (result.suggestions.length === 0) {
-            setValidationMsg("Please add the correct card name. No matching cards found.");
+            setValidationMsg(UI_STRINGS.card_form.ai_verify_failed);
           } else {
-            setValidationMsg("Please provide your current card's full name. See suggestions below:");
+            setValidationMsg(UI_STRINGS.card_form.ai_verify_hint);
           }
         } catch (err) {
-          setValidationMsg("Unable to fetch suggestions. Please check card name manually.");
+          setValidationMsg("Search delayed. Proceeding with manual input.");
         }
         setIsTyping(false);
       } else {
@@ -123,11 +126,11 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         setShowConfirmation(true);
         setSuggestions([]);
       } else {
-        setValidationMsg('AI could not identify this card. Please check the name or enter benefits manually.');
+        setValidationMsg('AI check completed. No official perks found for this specific name.');
         setSuggestions([]);
       }
-    } catch (error) {
-      setValidationMsg('Network error. Please try again.');
+    } catch (error: any) {
+      setValidationMsg(error.message || 'Service unreachable. Check internet connection.');
       setSuggestions([]);
     } finally {
       setIsFetching(false);
@@ -176,7 +179,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     e.preventDefault();
     if (!formData.name || !formData.expiryMonth || !formData.expiryYear || duplicateCard) return;
 
-    const cleanNum = formData.fullNumber.replace(/\s/g, '');
+    const cleanNum = getNormalizedNumber(formData.fullNumber);
     const last4 = cleanNum.length >= 4 ? cleanNum.slice(-4) : formData.last4;
 
     const benefitsWithIds: Benefit[] = fetchedBenefits.map((b, i) => ({
@@ -189,25 +192,25 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 overflow-y-auto custom-scrollbar flex flex-col items-center p-4 py-8 md:py-16">
       {showConfirmation && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 animate-in zoom-in slide-in-from-bottom-4 duration-300 border border-white/10">
             <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-blue-500/20">
               <Sparkles size={32} />
             </div>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">Verify AI Benefits</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-6">Confirm these rewards to add them to your vault.</p>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">{UI_STRINGS.card_form.check_ai_success_title}</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-6">{UI_STRINGS.card_form.check_ai_success_subtitle}</p>
             
             <div className="space-y-3 max-h-64 overflow-y-auto pr-2 mb-8 custom-scrollbar">
               {pendingBenefits.map((b, i) => (
-                <div key={i} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-start gap-4 group hover:border-blue-300 transition-colors">
+                <div key={i} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-start gap-4">
                   <div className="mt-1 bg-emerald-500/10 text-emerald-500 p-1 rounded-lg">
                     <CheckCircle2 size={16} />
                   </div>
-                  <div>
-                    <span className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-widest">{b.category}</span>
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight group-hover:text-slate-900 transition-colors">{b.detail}</p>
+                  <div className="text-left">
+                    <span className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-[0.2em]">{b.category}</span>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight">{b.detail}</p>
                   </div>
                 </div>
               ))}
@@ -216,16 +219,16 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
             <div className="flex gap-3 pt-2">
                <button 
                 onClick={() => setShowConfirmation(false)}
-                className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
                >
-                 Cancel
+                 {UI_STRINGS.common.cancel}
                </button>
                <button 
                 onClick={confirmBenefits}
-                className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 flex items-center justify-center gap-2"
+                className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-blue-500/30 flex items-center justify-center gap-2"
                >
-                 <Zap size={16} />
-                 <span>Add to Vault</span>
+                 <Zap size={14} />
+                 <span>{UI_STRINGS.card_form.apply_benefits_btn}</span>
                </button>
             </div>
           </div>
@@ -234,12 +237,14 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
       {showScanner && <CardScanner onScanComplete={handleScanComplete} onCancel={handleScannerCancel} />}
 
-      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border border-slate-100 dark:border-slate-800 flex flex-col">
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl relative border border-slate-100 dark:border-slate-800 flex flex-col my-auto">
         <div className="p-8 pb-0">
           <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{initialData ? 'Update Card' : 'New Security Entry'}</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Encrypted, local-only storage active.</p>
+            <div className="text-left">
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                {initialData ? UI_STRINGS.card_form.update_title : UI_STRINGS.card_form.onboarding_title}
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1 uppercase tracking-widest">{UI_STRINGS.card_form.encrypted_subtitle}</p>
             </div>
             <button onClick={onCancel} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
               <X size={24} className="text-slate-400 dark:text-slate-500" />
@@ -251,19 +256,19 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
               <button
                 type="button"
                 onClick={() => setShowScanner(true)}
-                className="w-full flex items-center justify-center gap-3 py-6 rounded-3xl bg-slate-900 dark:bg-slate-950 text-white font-black shadow-xl hover:bg-black dark:hover:bg-black transition-all scale-100 active:scale-95 group border border-white/5 uppercase text-xs tracking-widest"
+                className="w-full flex items-center justify-center gap-3 py-6 rounded-3xl bg-slate-900 dark:bg-slate-950 text-white font-black shadow-xl hover:bg-black transition-all active:scale-95 group border border-white/5 uppercase text-xs tracking-[0.2em]"
               >
                 <Camera size={24} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                <span>Snap Front & Back</span>
+                <span>{UI_STRINGS.card_form.visual_capture}</span>
               </button>
             </div>
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 pt-0 space-y-8">
+        <form onSubmit={handleSubmit} className="p-8 pt-0 space-y-8 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="md:col-span-2">
-              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Card Category</label>
+              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.product_tier}</label>
               <div className="grid grid-cols-2 gap-4">
                  <button
                   type="button"
@@ -271,9 +276,9 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                     setFormData({ ...formData, cardCategory: 'Credit' });
                     setHasBeenSelected(false);
                   }}
-                  className={`py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition-all ${formData.cardCategory === 'Credit' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500 hover:border-slate-200 dark:hover:border-slate-600'}`}
+                  className={`py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition-all ${formData.cardCategory === 'Credit' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500'}`}
                  >
-                   Credit Card
+                   Credit
                  </button>
                  <button
                   type="button"
@@ -281,27 +286,27 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                     setFormData({ ...formData, cardCategory: 'Debit' });
                     setHasBeenSelected(false);
                   }}
-                  className={`py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition-all ${formData.cardCategory === 'Debit' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500 hover:border-slate-200 dark:hover:border-slate-600'}`}
+                  className={`py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition-all ${formData.cardCategory === 'Debit' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500'}`}
                  >
-                   Debit Card
+                   Debit
                  </button>
               </div>
             </div>
 
             <div className="md:col-span-2 relative">
-              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Card Product Name</label>
+              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.product_name}</label>
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-grow">
                   <input
                     type="text"
-                    placeholder={`e.g. ${formData.cardCategory === 'Credit' ? 'HDFC Infinia' : 'SBI Global Contactless'}`}
+                    placeholder={UI_STRINGS.card_form.product_name_placeholder}
                     required
                     value={formData.name}
                     onChange={e => {
                       setFormData({ ...formData, name: e.target.value });
                       setHasBeenSelected(false);
                     }}
-                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') ? 'border-rose-400 ring-rose-500/10' : 'border-slate-100 dark:border-slate-700 focus:ring-blue-500'} focus:ring-2 focus:border-blue-500 outline-none transition-all font-bold`}
+                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold`}
                   />
                   {isTyping && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 size={18} className="animate-spin text-blue-500" /></div>}
                 </div>
@@ -309,17 +314,17 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   type="button"
                   onClick={() => handleFetchBenefits()}
                   disabled={isFetching || !formData.name.trim()}
-                  className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-xl shadow-blue-500/30"
+                  className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-500/30"
                 >
-                  {isFetching ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                  <span>Find Benefits</span>
+                  {isFetching ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  <span>{UI_STRINGS.card_form.check_ai_btn}</span>
                 </button>
               </div>
 
               {((suggestions.length > 0 && !hasBeenSelected) || (validationMsg !== '')) && !isTyping && (
-                <div className={`mt-3 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 duration-300 ${validationMsg.includes('correct') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/30' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30'}`}>
-                  <div className={`flex items-start gap-3 text-xs font-bold mb-3 ${validationMsg.includes('correct') ? 'text-rose-600 dark:text-rose-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                    {validationMsg.includes('correct') ? <AlertCircle size={16} className="shrink-0" /> : <Search size={16} className="shrink-0" />}
+                <div className={`mt-3 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 ${validationMsg.includes('correct') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100'}`}>
+                  <div className={`flex items-start gap-3 text-[10px] font-black uppercase tracking-widest mb-3 ${validationMsg.includes('correct') ? 'text-rose-600' : 'text-amber-700'}`}>
+                    {validationMsg.includes('correct') ? <AlertCircle size={14} /> : <Search size={14} />}
                     <span>{validationMsg}</span>
                   </div>
                   {suggestions.length > 0 && (
@@ -334,7 +339,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                             setSuggestions([]);
                             setValidationMsg('');
                           }}
-                          className="text-[11px] font-black px-4 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-2 border-slate-100 dark:border-slate-700 rounded-xl hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm active:scale-95"
+                          className="text-[10px] font-black px-4 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-2 border-slate-100 dark:border-slate-700 rounded-xl hover:border-blue-500 transition-all active:scale-95"
                         >
                           {s}
                         </button>
@@ -346,12 +351,12 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Card Number</label>
+              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.identifier_label}</label>
               <div className="relative">
                 <Hash className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                 <input
                   type="text"
-                  placeholder="0000 0000 0000 0000"
+                  placeholder={UI_STRINGS.card_form.identifier_placeholder}
                   required
                   value={formData.fullNumber}
                   onChange={e => {
@@ -359,14 +364,14 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                     const formatted = val.match(/.{1,4}/g)?.join(' ') || val;
                     setFormData({ ...formData, fullNumber: formatted.slice(0, 19) });
                   }}
-                  className={`w-full pl-14 pr-5 py-4 rounded-2xl border-2 ${duplicateCard ? 'border-rose-400 ring-rose-500/10' : 'border-slate-100 dark:border-slate-700'} dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono text-xl tracking-[0.1em]`}
+                  className={`w-full pl-14 pr-5 py-4 rounded-2xl border-2 ${duplicateCard ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-xl tracking-[0.1em]`}
                 />
               </div>
               {duplicateCard && (
-                <div className="mt-3 flex items-center gap-3 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-2xl animate-in shake duration-300">
+                <div className="mt-3 flex items-center gap-3 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 rounded-2xl animate-in shake">
                   <ShieldAlert size={18} className="text-rose-500" />
-                  <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
-                    Card already exists in vault: <span className="underline font-black">{duplicateCard.name}</span>.
+                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-600">
+                    {UI_STRINGS.card_form.duplicate_error} <span className="underline">{duplicateCard.name}</span>
                   </p>
                 </div>
               )}
@@ -374,7 +379,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Expiry Month</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.exp_month}</label>
                 <input
                   type="number"
                   min="1"
@@ -382,16 +387,15 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   required
                   placeholder="MM"
                   value={formData.expiryMonth}
-                  onInput={(e: any) => e.target.value = e.target.value.slice(0, 2)}
                   onChange={e => {
                     const val = Math.min(12, Math.max(1, Number(e.target.value)));
                     setFormData({ ...formData, expiryMonth: isNaN(val) ? 1 : val });
                   }}
-                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-bold"
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Expiry Year</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.exp_year}</label>
                 <input
                   type="number"
                   min="2024"
@@ -399,18 +403,17 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   required
                   placeholder="YYYY"
                   value={formData.expiryYear}
-                  onInput={(e: any) => e.target.value = e.target.value.slice(0, 4)}
                   onChange={e => {
                     const val = Number(e.target.value);
                     setFormData({ ...formData, expiryYear: isNaN(val) ? 2028 : val });
                   }}
-                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-bold"
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Security Code (CVV)</label>
+              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.security_cvv}</label>
               <div className="relative">
                 <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                 <input
@@ -420,94 +423,67 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   placeholder="***"
                   value={formData.cvv}
                   onChange={e => setFormData({ ...formData, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                  className="w-full pl-14 pr-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono text-xl tracking-[0.5em]"
+                  className="w-full pl-14 pr-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono text-xl tracking-[0.5em]"
                 />
               </div>
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Best Current Offer (Auto-Filled)</label>
-              <div className="relative">
-                <Zap className="absolute left-5 top-1/2 -translate-y-1/2 text-amber-500" size={18} />
-                <input
-                  type="text"
-                  placeholder="Highlights will appear here after AI check..."
-                  value={formData.bestOffer}
-                  onChange={e => setFormData({ ...formData, bestOffer: e.target.value })}
-                  className="w-full pl-14 pr-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-bold text-sm"
-                />
-              </div>
-              <p className="mt-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">This text appears on the card summary in your wallet.</p>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Network</label>
+              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.network_brand}</label>
               <input
                 type="text"
-                placeholder="Visa, RuPay, Amex..."
+                placeholder="Visa, RuPay, etc."
                 value={formData.cardType}
                 onChange={e => setFormData({ ...formData, cardType: e.target.value })}
-                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Credit Limit (₹)</label>
-              <input
-                type="number"
-                placeholder="Limit"
-                value={formData.creditLimit || ''}
-                onChange={e => setFormData({ ...formData, creditLimit: Number(e.target.value) })}
-                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-bold"
+                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold uppercase"
               />
             </div>
           </div>
 
-          <div ref={benefitSectionRef} className={`p-8 rounded-[2rem] border-2 transition-all duration-500 ${fetchedBenefits.length > 0 ? 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 opacity-100 translate-y-0' : 'bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 opacity-60'}`}>
+          <div ref={benefitSectionRef} className={`p-8 rounded-[2rem] border-2 transition-all duration-500 ${fetchedBenefits.length > 0 ? 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30' : 'bg-slate-50 dark:bg-slate-800/30 border-slate-100 opacity-60'}`}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${fetchedBenefits.length > 0 ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'}`}>
+                <div className={`p-2 rounded-xl ${fetchedBenefits.length > 0 ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-200 text-slate-400'}`}>
                   <Sparkles size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">AI Scoped Benefits</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Found: {fetchedBenefits.length} Items</p>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white leading-none">{UI_STRINGS.card_form.benefits_profile_title}</h3>
+                  <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">{fetchedBenefits.length} {UI_STRINGS.card_form.benefits_loaded_subtitle}</p>
                 </div>
               </div>
               {fetchedBenefits.length > 0 && <CheckCircle2 className="text-emerald-500" size={24} />}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-80 overflow-y-auto pr-3 custom-scrollbar">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-60 overflow-y-auto pr-3 custom-scrollbar">
               {fetchedBenefits.length > 0 ? (
                 fetchedBenefits.map((benefit, i) => (
-                  <div key={i} className="p-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-50 dark:border-slate-700 shadow-sm flex flex-col hover:border-blue-400 transition-all group animate-in zoom-in duration-300">
-                    <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">{benefit.category}</span>
-                    <p className="text-slate-900 dark:text-slate-100 text-xs font-bold leading-relaxed">{benefit.detail}</p>
+                  <div key={i} className="p-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-50 dark:border-slate-700 shadow-sm animate-in zoom-in duration-300">
+                    <span className="text-[8px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest block mb-1">{benefit.category}</span>
+                    <p className="text-slate-900 dark:text-slate-100 text-[10px] font-bold leading-tight">{benefit.detail}</p>
                   </div>
                 ))
               ) : (
-                <div className="col-span-full py-10 text-center space-y-3">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest italic">Use "Find Benefits" to auto-fetch</p>
+                <div className="col-span-full py-6 text-center">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{UI_STRINGS.card_form.benefits_pending}</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="pt-8 flex gap-4">
+          <div className="pt-8 flex gap-4 pb-4">
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 py-5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
+              className="flex-1 py-5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-[2rem] font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
             >
-              Cancel
+              {UI_STRINGS.common.cancel}
             </button>
             <button
               type="submit"
               disabled={!!duplicateCard}
-              className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-2xl shadow-blue-500/40 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
+              className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-[0.2em] active:scale-95 transition-all shadow-2xl shadow-blue-500/40 disabled:opacity-50"
             >
-              <Save size={20} />
-              <span>{initialData ? 'Update Vault' : 'Commit to Vault'}</span>
+              {UI_STRINGS.card_form.commit_btn}
             </button>
           </div>
         </form>

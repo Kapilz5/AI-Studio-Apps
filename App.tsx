@@ -8,6 +8,7 @@ import CardForm from './components/CardForm';
 import BenefitSearch from './components/BenefitSearch';
 import SecurityAuth from './components/SecurityAuth';
 import SettingsModal from './components/SettingsModal';
+import { UI_STRINGS } from './locales/en';
 
 type ViewMode = 'Dashboard' | 'Explorer';
 
@@ -186,8 +187,8 @@ const App: React.FC = () => {
               <Wallet size={24} />
             </div>
             <div className="hidden sm:block text-left">
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">My Cards</h1>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">AI Secure Vault</p>
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">{UI_STRINGS.common.app_name}</h1>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">{UI_STRINGS.common.app_subtitle}</p>
             </div>
           </div>
 
@@ -199,7 +200,7 @@ const App: React.FC = () => {
               <UserCircle size={18} />
             </button>
             <button onClick={() => setIsFormOpen(true)} className="flex items-center space-x-2 px-5 py-3 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 active:scale-95">
-              <Plus size={20} /><span className="hidden sm:inline">Add Card</span>
+              <Plus size={20} /><span className="hidden sm:inline">{UI_STRINGS.common.add_card}</span>
             </button>
           </div>
         </div>
@@ -215,8 +216,8 @@ const App: React.FC = () => {
                   <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     <Layers size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Vault Capacity</p>
-                  <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">{cards.length} <span className="text-sm text-slate-400 font-bold tracking-normal">Cards</span></p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{UI_STRINGS.dashboard.vault_capacity}</p>
+                  <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">{cards.length} <span className="text-sm text-slate-400 font-bold tracking-normal">{UI_STRINGS.dashboard.cards_unit}</span></p>
                 </div>
               </div>
               
@@ -228,12 +229,12 @@ const App: React.FC = () => {
                   <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/30 text-rose-600 rounded-xl flex items-center justify-center mb-3">
                     <AlertTriangle size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Near Expiry</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{UI_STRINGS.dashboard.near_expiry}</p>
                   <div className="flex items-baseline gap-2">
                     <p className={`text-2xl md:text-3xl font-black ${expiringSoonCount > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>{expiringSoonCount}</p>
                     {expiryConflicts.length > 0 && (
                       <span className="flex items-center gap-1 bg-rose-100 dark:bg-rose-900/40 text-rose-600 text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse">
-                         CONFLICT
+                         {UI_STRINGS.dashboard.conflict_badge}
                       </span>
                     )}
                   </div>
@@ -249,13 +250,13 @@ const App: React.FC = () => {
                   <div className="w-10 h-10 bg-purple-50 dark:bg-purple-900/30 text-purple-600 rounded-xl flex items-center justify-center mb-3">
                     <History size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Furthest Expiry</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{UI_STRINGS.dashboard.furthest_expiry}</p>
                   <div className="truncate">
                     <p className="text-lg md:text-xl font-black text-slate-900 dark:text-white truncate">
                       {furthestExpiryCard ? furthestExpiryCard.name : '--'}
                     </p>
                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                      Valid Until: {furthestExpiryCard ? `${String(furthestExpiryCard.expiryMonth).padStart(2, '0')}/${furthestExpiryCard.expiryYear}` : 'N/A'}
+                      {UI_STRINGS.dashboard.valid_until}: {furthestExpiryCard ? `${String(furthestExpiryCard.expiryMonth).padStart(2, '0')}/${furthestExpiryCard.expiryYear}` : 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -266,7 +267,7 @@ const App: React.FC = () => {
                   <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-xl flex items-center justify-center mb-3">
                     <BarChart3 size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Portfolio Limit</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{UI_STRINGS.dashboard.portfolio_limit}</p>
                   <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">₹{totalLimit >= 100000 ? `${(totalLimit / 100000).toFixed(1)}L` : totalLimit.toLocaleString()}</p>
                 </div>
               </div>
@@ -277,7 +278,7 @@ const App: React.FC = () => {
                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                  <input 
                   type="text" 
-                  placeholder="Search vault or card ID..." 
+                  placeholder={UI_STRINGS.common.search_placeholder} 
                   value={searchTerm} 
                   onChange={e => setSearchTerm(e.target.value)} 
                   className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
@@ -296,9 +297,9 @@ const App: React.FC = () => {
                   <div className="w-24 h-24 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-full flex items-center justify-center mb-6">
                     <CardIcon size={48} />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Vault is Empty</h3>
-                  <p className="text-slate-500 dark:text-slate-400 mt-2 mb-8 font-medium">Add your cards to monitor expiry and annual fees.</p>
-                  <button onClick={() => setIsFormOpen(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-500/30 active:scale-95 transition-all">Add First Card</button>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{UI_STRINGS.dashboard.empty_vault_title}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 mt-2 mb-8 font-medium">{UI_STRINGS.dashboard.empty_vault_subtitle}</p>
+                  <button onClick={() => setIsFormOpen(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-500/30 active:scale-95 transition-all">{UI_STRINGS.dashboard.add_first_card}</button>
                </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -319,14 +320,14 @@ const App: React.FC = () => {
         <div className="max-w-md mx-auto mb-6 pointer-events-auto h-20 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[2.5rem] px-8 flex justify-between items-center shadow-2xl">
           <button onClick={() => setViewMode('Dashboard')} className={`flex flex-col items-center transition-all active:scale-90 ${viewMode === 'Dashboard' ? 'text-blue-400 scale-110' : 'text-slate-500'}`}>
             <LayoutGrid size={24} />
-            <span className="text-[9px] font-black uppercase mt-1 tracking-widest">Wallet</span>
+            <span className="text-[9px] font-black uppercase mt-1 tracking-widest">{UI_STRINGS.navigation.wallet}</span>
           </button>
           <button onClick={() => setIsFormOpen(true)} className="w-16 h-16 bg-blue-600 text-white rounded-2xl -mt-16 flex items-center justify-center border-[6px] border-slate-900 shadow-2xl active:scale-90 transition-transform">
             <Plus size={32} />
           </button>
           <button onClick={() => setViewMode('Explorer')} className={`flex flex-col items-center transition-all active:scale-90 ${viewMode === 'Explorer' ? 'text-blue-400 scale-110' : 'text-slate-500'}`}>
             <Sparkles size={24} />
-            <span className="text-[9px] font-black uppercase mt-1 tracking-widest">Insights</span>
+            <span className="text-[9px] font-black uppercase mt-1 tracking-widest">{UI_STRINGS.navigation.benefits}</span>
           </button>
         </div>
       </nav>
@@ -337,8 +338,8 @@ const App: React.FC = () => {
            <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in slide-in-from-bottom-4 duration-300 border border-white/10 flex flex-col max-h-[80vh]">
               <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                  <div>
-                    <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-none tracking-tight">Expiry Conflicts</h3>
-                    <p className="text-[10px] text-rose-500 font-black uppercase tracking-widest mt-2">Managing Simultaneous Expiries</p>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-none tracking-tight">{UI_STRINGS.dashboard.expiry_conflict_title}</h3>
+                    <p className="text-[10px] text-rose-500 font-black uppercase tracking-widest mt-2">{UI_STRINGS.dashboard.expiry_conflict_subtitle}</p>
                  </div>
                  <button onClick={() => setShowConflictModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors active:scale-90">
                     <X size={24} className="text-slate-400" />
@@ -351,7 +352,7 @@ const App: React.FC = () => {
                           <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl"><CalendarDays size={18} /></div>
                           <span className="text-lg font-black text-slate-900 dark:text-white">{conflict.date}</span>
                           <span className="px-3 py-1 bg-rose-50 dark:bg-rose-900/50 text-rose-600 text-[10px] font-black rounded-full uppercase tracking-widest">
-                             {conflict.cluster.length} Cards
+                             {conflict.cluster.length} {UI_STRINGS.dashboard.cards_unit}
                           </span>
                        </div>
                        <div className="grid gap-3">
@@ -376,7 +377,7 @@ const App: React.FC = () => {
                  ))}
               </div>
               <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
-                 <button onClick={() => setShowConflictModal(false)} className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] active:scale-95 transition-all">Close Resolution View</button>
+                 <button onClick={() => setShowConflictModal(false)} className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] active:scale-95 transition-all">{UI_STRINGS.dashboard.close_resolution}</button>
               </div>
            </div>
         </div>
