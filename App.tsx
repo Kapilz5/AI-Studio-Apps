@@ -37,6 +37,7 @@ const App: React.FC = () => {
     return false;
   });
 
+  // Handle Theme
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -47,14 +48,34 @@ const App: React.FC = () => {
     }
   }, [isDark]);
 
+  // Initial Security Check & Session Lock on App Visibility Change
   useEffect(() => {
-    const pinHash = getMPINHash();
-    if (!pinHash) {
-      setIsSetupRequired(true);
-      setIsAppLocked(false);
-    } else {
-      setIsAppLocked(true);
-    }
+    const checkSecurityStatus = () => {
+      const pinHash = getMPINHash();
+      if (!pinHash) {
+        setIsSetupRequired(true);
+        setIsAppLocked(false);
+      } else {
+        // We always start locked on mount or refresh
+        setIsAppLocked(true);
+      }
+    };
+
+    checkSecurityStatus();
+
+    // Session Lock: Prompt for PIN/Biometrics whenever user reopens the app
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // Immediately lock and clear master key from memory when app goes to background
+        setIsAppLocked(true);
+        setMasterKey(null);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const handleUnlockSuccess = useCallback((key: Uint8Array, decryptedCards?: CreditCard[]) => {
@@ -158,6 +179,10 @@ const App: React.FC = () => {
       setTimeout(() => setHighlightedCardId(null), 3000);
     }, 100);
   };
+
+  if (isAppLocked || isSetupRequired) {
+    return <SecurityAuth mode={isSetupRequired ? "setup" : "verify"} onSuccess={handleUnlockSuccess} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 pb-20 transition-colors duration-300">
