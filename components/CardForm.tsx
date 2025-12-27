@@ -10,7 +10,7 @@ interface CardFormProps {
   onSave: (data: CardFormData, benefits: Benefit[]) => void;
   onCancel: () => void;
   initialData?: CreditCard;
-  cards: CreditCard[];
+  cards: CreditCard[]; 
 }
 
 const getNormalizedNumber = (num: string) => num.replace(/[\s-]/g, '');
@@ -192,7 +192,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 overflow-y-auto custom-scrollbar flex flex-col items-center p-4 py-8 md:py-16">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 overflow-y-auto custom-scrollbar pt-10 pb-20 px-4 flex flex-col items-center">
       {showConfirmation && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 animate-in zoom-in slide-in-from-bottom-4 duration-300 border border-white/10">
@@ -237,13 +237,11 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
       {showScanner && <CardScanner onScanComplete={handleScanComplete} onCancel={handleScannerCancel} />}
 
-      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl relative border border-slate-100 dark:border-slate-800 flex flex-col my-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl relative border border-slate-100 dark:border-slate-800 flex flex-col mb-10">
         <div className="p-8 pb-0">
           <div className="flex justify-between items-center mb-8">
             <div className="text-left">
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {initialData ? UI_STRINGS.card_form.update_title : UI_STRINGS.card_form.onboarding_title}
-              </h2>
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{UI_STRINGS.card_form.onboarding_title}</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1 uppercase tracking-widest">{UI_STRINGS.card_form.encrypted_subtitle}</p>
             </div>
             <button onClick={onCancel} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">

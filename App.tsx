@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon } from 'lucide-react';
+import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
 import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod } from './utils/storage';
 import CardItem from './components/CardItem';
@@ -20,6 +20,7 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('Dashboard');
   const [sortOrder, setSortOrder] = useState<'age' | 'expiry'>('age');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterExpiring, setFilterExpiring] = useState(false);
   const [notificationPeriod, setNotificationPeriodState] = useState(getNotificationPeriod());
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
@@ -60,10 +61,11 @@ const App: React.FC = () => {
     if (!isAppLocked && cards.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
       const now = new Date();
       const expiringCards = cards.filter(card => {
-        const expiryDate = new Date(card.expiryYear, card.expiryMonth - 1);
+        // Card expiry is end of month
+        const expiryDate = new Date(card.expiryYear, card.expiryMonth, 0, 23, 59, 59);
         const diffMs = expiryDate.getTime() - now.getTime();
         const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
-        return diffMonths > 0 && diffMonths <= notificationPeriod;
+        return diffMonths >= 0 && diffMonths <= notificationPeriod;
       });
 
       if (expiringCards.length > 0) {
@@ -121,10 +123,10 @@ const App: React.FC = () => {
   const expiringSoonCount = useMemo(() => {
     const now = new Date();
     return cards.filter(card => {
-        const expiryDate = new Date(card.expiryYear, card.expiryMonth - 1);
+        const expiryDate = new Date(card.expiryYear, card.expiryMonth, 0, 23, 59, 59);
         const diffMs = expiryDate.getTime() - now.getTime();
         const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
-        return diffMonths > 0 && diffMonths <= notificationPeriod;
+        return diffMonths >= 0 && diffMonths <= notificationPeriod;
     }).length;
   }, [cards, notificationPeriod]);
 
@@ -151,6 +153,7 @@ const App: React.FC = () => {
   const handleHighlightCard = (id: string) => {
     setHighlightedCardId(id);
     setSearchTerm('');
+    setFilterExpiring(false);
     setTimeout(() => {
       const el = document.getElementById(`card-${id}`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -160,58 +163,97 @@ const App: React.FC = () => {
 
   const sortedCards = useMemo(() => {
     let filtered = cards;
+    
+    // Application of Search
     if (searchTerm) {
-      filtered = cards.filter(c => 
+      filtered = filtered.filter(c => 
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         c.last4.includes(searchTerm) ||
         c.cardType.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+    
+    // Application of Near Expiry Filter
+    if (filterExpiring) {
+      const now = new Date();
+      filtered = filtered.filter(card => {
+        const expiryDate = new Date(card.expiryYear, card.expiryMonth, 0, 23, 59, 59);
+        const diffMs = expiryDate.getTime() - now.getTime();
+        const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
+        return diffMonths >= 0 && diffMonths <= notificationPeriod;
+      });
+    }
+
     return [...filtered].sort((a, b) => {
-      if (sortOrder === 'age') return Number(b.id) - Number(a.id); // Newest added first
+      if (sortOrder === 'age') return Number(b.id) - Number(a.id);
       if (a.expiryYear !== b.expiryYear) return a.expiryYear - b.expiryYear;
       return a.expiryMonth - b.expiryMonth;
     });
-  }, [cards, searchTerm, sortOrder]);
+  }, [cards, searchTerm, sortOrder, filterExpiring, notificationPeriod]);
 
   if (isAppLocked || isSetupRequired) {
     return <SecurityAuth mode={isSetupRequired ? "setup" : "verify"} onSuccess={handleUnlockSuccess} />;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 pb-32 md:pb-12 transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 pb-12 transition-colors duration-300">
       <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 pt-[env(safe-area-inset-top)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 md:h-24 flex items-center justify-between gap-4">
+          <div className="flex items-center space-x-3 shrink-0">
             <div className="w-10 h-10 md:w-12 md:h-12 card-gradient rounded-2xl shadow-xl flex items-center justify-center text-white rotate-3">
               <Wallet size={24} />
             </div>
-            <div className="hidden sm:block text-left">
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">{UI_STRINGS.common.app_name}</h1>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">{UI_STRINGS.common.app_subtitle}</p>
+            <div className="hidden lg:block text-left">
+              <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">{UI_STRINGS.common.app_name}</h1>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-none">{UI_STRINGS.common.app_subtitle}</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <button onClick={() => setIsDark(!isDark)} className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl transition-all border border-slate-200 dark:border-slate-800 active:scale-95">
+          {/* Navigation Toggle - Header Integrated */}
+          <div className="flex-grow max-w-sm">
+             <div className="bg-slate-100 dark:bg-slate-800/50 p-1 rounded-2xl flex relative h-12">
+                <div 
+                  className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-xl shadow-sm transition-all duration-300 ease-out ${viewMode === 'Explorer' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}`}
+                />
+                <button 
+                  onClick={() => setViewMode('Dashboard')}
+                  className={`flex-1 flex items-center justify-center gap-2 relative z-10 transition-colors ${viewMode === 'Dashboard' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'}`}
+                >
+                  <LayoutGrid size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{UI_STRINGS.navigation.wallet}</span>
+                </button>
+                <button 
+                  onClick={() => setViewMode('Explorer')}
+                  className={`flex-1 flex items-center justify-center gap-2 relative z-10 transition-colors ${viewMode === 'Explorer' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'}`}
+                >
+                  <Sparkles size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{UI_STRINGS.navigation.benefits}</span>
+                </button>
+             </div>
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0">
+            <button onClick={() => setIsDark(!isDark)} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl transition-all border border-slate-200 dark:border-slate-800 active:scale-95">
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button onClick={() => setIsSettingsOpen(true)} className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl transition-all border border-slate-200 dark:border-slate-800 active:scale-95">
+            <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl transition-all border border-slate-200 dark:border-slate-800 active:scale-95">
               <UserCircle size={18} />
             </button>
-            <button onClick={() => setIsFormOpen(true)} className="flex items-center space-x-2 px-5 py-3 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 active:scale-95">
-              <Plus size={20} /><span className="hidden sm:inline">{UI_STRINGS.common.add_card}</span>
+            <button onClick={() => setIsFormOpen(true)} className="p-2.5 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 active:scale-95">
+              <Plus size={20} />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         {viewMode === 'Dashboard' ? (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Dashboard Overview Tabs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between group transition-all">
+              <div 
+                onClick={() => setFilterExpiring(false)}
+                className={`bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between group transition-all cursor-pointer active:scale-95 ${!filterExpiring ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-100 dark:border-slate-800'}`}
+              >
                 <div>
                   <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     <Layers size={20} />
@@ -222,8 +264,11 @@ const App: React.FC = () => {
               </div>
               
               <div 
-                onClick={() => expiryConflicts.length > 0 && setShowConflictModal(true)}
-                className={`bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative transition-all ${expiryConflicts.length > 0 ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-700 active:scale-95' : ''}`}
+                onClick={() => {
+                  if (expiringSoonCount > 0) setFilterExpiring(!filterExpiring);
+                  if (expiryConflicts.length > 0 && !filterExpiring) setShowConflictModal(true);
+                }}
+                className={`bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between relative transition-all active:scale-95 ${filterExpiring ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-100 dark:border-slate-800'} ${expiringSoonCount > 0 ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-700' : ''}`}
               >
                 <div>
                   <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/30 text-rose-600 rounded-xl flex items-center justify-center mb-3">
@@ -289,17 +334,32 @@ const App: React.FC = () => {
                     <ArrowUpDown size={16} className="text-blue-600" />
                     <span>{sortOrder === 'age' ? 'Newest' : 'Expiry'}</span>
                   </button>
+                  {filterExpiring && (
+                    <button 
+                      onClick={() => setFilterExpiring(false)}
+                      className="flex items-center space-x-2 px-6 py-4 bg-rose-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-rose-500/30 transition-all active:scale-95 uppercase tracking-widest"
+                    >
+                      <X size={16} />
+                      <span>Clear Filter</span>
+                    </button>
+                  )}
                </div>
             </div>
 
-            {cards.length === 0 ? (
+            {sortedCards.length === 0 ? (
                <div className="py-20 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 transition-all">
                   <div className="w-24 h-24 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-full flex items-center justify-center mb-6">
-                    <CardIcon size={48} />
+                    {filterExpiring ? <AlertTriangle size={48} /> : <CardIcon size={48} />}
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{UI_STRINGS.dashboard.empty_vault_title}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 mt-2 mb-8 font-medium">{UI_STRINGS.dashboard.empty_vault_subtitle}</p>
-                  <button onClick={() => setIsFormOpen(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-500/30 active:scale-95 transition-all">{UI_STRINGS.dashboard.add_first_card}</button>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {filterExpiring ? 'No Expiring Cards Found' : UI_STRINGS.dashboard.empty_vault_title}
+                  </h3>
+                  <p className="text-slate-500 dark:text-slate-400 mt-2 mb-8 font-medium">
+                    {filterExpiring ? 'No cards match the near-expiry criteria.' : UI_STRINGS.dashboard.empty_vault_subtitle}
+                  </p>
+                  <button onClick={() => { setFilterExpiring(false); setIsFormOpen(true); }} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-500/30 active:scale-95 transition-all">
+                    {filterExpiring ? 'View All Cards' : UI_STRINGS.dashboard.add_first_card}
+                  </button>
                </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -315,22 +375,6 @@ const App: React.FC = () => {
           <BenefitSearch cards={cards} />
         )}
       </main>
-
-      <nav className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-[env(safe-area-inset-bottom)] pointer-events-none">
-        <div className="max-w-md mx-auto mb-6 pointer-events-auto h-20 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-[2.5rem] px-8 flex justify-between items-center shadow-2xl">
-          <button onClick={() => setViewMode('Dashboard')} className={`flex flex-col items-center transition-all active:scale-90 ${viewMode === 'Dashboard' ? 'text-blue-400 scale-110' : 'text-slate-500'}`}>
-            <LayoutGrid size={24} />
-            <span className="text-[9px] font-black uppercase mt-1 tracking-widest">{UI_STRINGS.navigation.wallet}</span>
-          </button>
-          <button onClick={() => setIsFormOpen(true)} className="w-16 h-16 bg-blue-600 text-white rounded-2xl -mt-16 flex items-center justify-center border-[6px] border-slate-900 shadow-2xl active:scale-90 transition-transform">
-            <Plus size={32} />
-          </button>
-          <button onClick={() => setViewMode('Explorer')} className={`flex flex-col items-center transition-all active:scale-90 ${viewMode === 'Explorer' ? 'text-blue-400 scale-110' : 'text-slate-500'}`}>
-            <Sparkles size={24} />
-            <span className="text-[9px] font-black uppercase mt-1 tracking-widest">{UI_STRINGS.navigation.benefits}</span>
-          </button>
-        </div>
-      </nav>
 
       {/* EXPIRY CONFLICT MODAL */}
       {showConflictModal && (

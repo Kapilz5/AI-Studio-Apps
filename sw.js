@@ -1,10 +1,10 @@
 
-const CACHE_NAME = 'my-cards-ai-v5';
+const CACHE_NAME = 'my-cards-ai-v7';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/sw.js',
+  './',
+  './index.html',
+  './manifest.json',
+  './sw.js',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap',
   'https://img.icons8.com/fluency/512/wallet.png'
@@ -37,11 +37,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Navigation Fallback: serve index.html for all navigation requests to prevent 404 errors on refresh/standalone
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
-        return caches.match('/index.html') || caches.match('/');
+        return caches.match('./index.html') || caches.match('./');
       })
     );
     return;

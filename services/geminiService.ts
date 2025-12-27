@@ -2,13 +2,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Benefit, CardCategory } from "../types";
 
-// Helper to initialize AI safely with debug logs
 const getAI = () => {
+  // Access API key directly from process.env.API_KEY as per guidelines
   const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "") {
-    console.error("CRITICAL: API_KEY is missing from environment variables.");
-    throw new Error("API Key Missing. Please check your project settings.");
+  
+  if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
+    console.error("Gemini Error: API_KEY is missing or invalid in the environment.");
+    throw new Error("AI Setup Incomplete. Please ensure your API Key is configured.");
   }
+  
   return new GoogleGenAI({ apiKey });
 };
 
@@ -19,18 +21,10 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
       model: "gemini-3-flash-preview",
       contents: { 
         parts: [{ 
-          text: `You are a world-class financial card expert specializing in Indian credit and debit products. 
-          Provide a structured list of official benefits for the following card:
-          - Product Name: "${cardName}"
-          - Category: ${category}
-          - Region: India
-
-          STRICT GUIDELINES:
-          1. Return ONLY a valid JSON array of objects. No markdown, no commentary.
-          2. Each object must strictly match this schema: { "category": string, "detail": string }.
-          3. The "category" field MUST be exactly one of: "Shopping", "Food", "Entertainment", "Fuel", "Forex", "Travel", "Other".
-          4. The "detail" field should be a concise, professional description of a specific perk (e.g., "5% cashback on Amazon", "Unlimited domestic lounge access").
-          5. If "${cardName}" is NOT a real card, return [].` 
+          text: `Extract official benefits for the Indian ${category} card: "${cardName}".
+          Return ONLY a JSON array of benefits.
+          Schema: { "category": string, "detail": string }.
+          Available Categories: "Shopping", "Food", "Entertainment", "Fuel", "Forex", "Travel", "Other".` 
         }] 
       },
       config: {
@@ -40,14 +34,8 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
           items: {
             type: Type.OBJECT,
             properties: {
-              category: {
-                type: Type.STRING,
-                description: 'Benefit category.',
-              },
-              detail: {
-                type: Type.STRING,
-                description: 'Concise description.',
-              },
+              category: { type: Type.STRING },
+              detail: { type: Type.STRING },
             },
             required: ["category", "detail"],
           },
@@ -61,8 +49,8 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
     let parsed = JSON.parse(text);
     return Array.isArray(parsed) ? parsed : [];
   } catch (error: any) {
-    console.error(`Gemini fetchCardBenefits Error:`, error.message || error);
-    throw new Error(error.message?.includes("API_KEY") ? "Invalid API Key" : "AI service unavailable. Please check your connection.");
+    console.error(`Gemini fetchCardBenefits Error:`, error);
+    throw new Error(error.message || "Could not fetch benefits. Please try again later.");
   }
 };
 
@@ -73,10 +61,12 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Search for Indian ${category} cards matching: "${userInput}". 
-      If it is a partial match, suggest the closest official full card names available in India (e.g. HDFC Millennia, ICICI Amazon Pay, Axis Ace).
-      Return up to 5 specific product names.
-      Format: { "suggestions": ["Name 1", "Name 2"], "message": "Feedback" }`,
+      contents: {
+        parts: [{
+          text: `Suggest up to 5 popular Indian ${category} card names starting with or similar to: "${userInput}".
+          Format as JSON: { "suggestions": ["Name 1", "Name 2"] }.`
+        }]
+      },
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -85,14 +75,14 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
             suggestions: {
               type: Type.ARRAY,
               items: { type: Type.STRING }
-            },
-            message: { type: Type.STRING }
+            }
           },
           required: ["suggestions"]
         }
       }
     });
-    return JSON.parse(response.text || '{"suggestions":[]}');
+    const result = JSON.parse(response.text || '{"suggestions":[]}');
+    return result;
   } catch (error) {
     console.error("Gemini getCardSuggestions Error:", error);
     return { suggestions: [] };
@@ -109,9 +99,7 @@ export const analyzeCardImages = async (frontBase64: string, backBase64: string)
           { inlineData: { mimeType: "image/jpeg", data: frontBase64 } },
           { inlineData: { mimeType: "image/jpeg", data: backBase64 } },
           {
-            text: `Extract card details from front/back images. 
-            Identify network (Visa, Mastercard, Amex, RuPay).
-            Return JSON: name, cardCategory, cardType, fullNumber, cvv, last4, expiryMonth, expiryYear, suggestedAnnualFee, suggestedWaiverTarget.`,
+            text: `Identify the card from these images. Extract: name, category (Credit/Debit), network (Visa/Mastercard/Amex/RuPay), last 4 digits, expiry (MM/YYYY), CVV. Return as JSON.`,
           }
         ]
       },
@@ -129,9 +117,8 @@ export const analyzeCardImages = async (frontBase64: string, backBase64: string)
             expiryMonth: { type: Type.INTEGER },
             expiryYear: { type: Type.INTEGER },
             suggestedAnnualFee: { type: Type.NUMBER },
-            suggestedWaiverTarget: { type: Type.NUMBER },
           },
-          required: ["name", "cardCategory", "fullNumber", "cvv", "last4", "expiryMonth", "expiryYear"],
+          required: ["name", "cardCategory", "last4", "expiryMonth", "expiryYear"],
         },
       },
     });

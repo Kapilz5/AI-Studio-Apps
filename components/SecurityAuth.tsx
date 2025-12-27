@@ -1,6 +1,6 @@
 
-import { Lock, X, ArrowRight, KeyRound, Loader2, ShieldAlert, LifeBuoy, RefreshCw, Trash2, Fingerprint, CheckCircle2, ShieldCheck } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { Lock, X, ArrowRight, KeyRound, Loader2, ShieldAlert, LifeBuoy, RefreshCw, Trash2, Fingerprint, CheckCircle2, ShieldCheck, ShieldCheck as ShieldIcon } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   setupSecurity, 
   unlockWithMPIN, 
@@ -32,6 +32,9 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
   const [useBiometricsDuringSetup, setUseBiometricsDuringSetup] = useState(false);
   const [isBioSetupSuccess, setIsBioSetupSuccess] = useState(false);
   const [isBioAvailable, setIsBioAvailable] = useState(false);
+  
+  // Guard to prevent double biometric prompt on iPhone
+  const bioTriggered = useRef(false);
 
   useEffect(() => {
     setMode(initialMode);
@@ -50,12 +53,18 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
         });
     }
 
-    if (initialMode === 'verify' && getBiometricEnrolled()) {
-      handleBiometricUnlock();
+    // Auto-trigger biometric unlock only once per mount
+    if (initialMode === 'verify' && getBiometricEnrolled() && !bioTriggered.current) {
+      bioTriggered.current = true;
+      const timer = setTimeout(() => {
+        handleBiometricUnlock();
+      }, 1000); // Increased delay for iPhone stability
+      return () => clearTimeout(timer);
     }
   }, [initialMode]);
 
   const handleBiometricUnlock = async () => {
+    if (isProcessing) return;
     setIsProcessing(true);
     setError('');
     try {
@@ -64,8 +73,11 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
         const cards = hasStoredData() ? await decryptLocalCards(masterKey) : [];
         onSuccess(masterKey, cards);
       }
-    } catch (err) {
-      console.error("Biometric unlock failed:", err);
+    } catch (err: any) {
+      // Don't show error if user cancelled the biometric prompt
+      if (err.name !== 'NotAllowedError') {
+        console.error("Biometric unlock error:", err);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -132,7 +144,6 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
         if (pin.length < 4) throw new Error(UI_STRINGS.security.mpin_length_error);
         if (pin !== confirmPin) throw new Error(UI_STRINGS.security.mpin_match_error);
         if (secretWord.trim().length < 3) throw new Error(UI_STRINGS.security.secret_word_error);
-        if (useBiometricsDuringSetup && !isBioSetupSuccess) throw new Error('Biometric setup was not completed.');
         
         const masterKey = await setupSecurity(pin, secretWord);
         if (useBiometricsDuringSetup && isBioSetupSuccess) {
@@ -150,7 +161,6 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
       } else if (mode === 'reset') {
         if (pin.length < 4) throw new Error(UI_STRINGS.security.mpin_length_error);
         if (pin !== confirmPin) throw new Error(UI_STRINGS.security.mpin_match_error);
-        if (secretWord.trim().length < 3) throw new Error('Please enter your valid recovery word.');
         
         const success = await resetMPINWithSecretWord(secretWord, pin);
         if (success) {
@@ -224,10 +234,6 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
                 value={pin}
                 onChange={e => {
                     setPin(e.target.value.replace(/\D/g, ''));
-                    if (useBiometricsDuringSetup && e.target.value.length < 4) {
-                        setUseBiometricsDuringSetup(false);
-                        setIsBioSetupSuccess(false);
-                    }
                 }}
                 className="w-full py-5 px-6 bg-white/10 border border-white/20 rounded-3xl text-white text-center text-2xl font-black tracking-[0.5em] focus:ring-4 focus:ring-blue-500/50 outline-none"
                 autoFocus
@@ -330,7 +336,7 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
 
         <div className="pt-8 text-center pb-12">
             <div className="flex items-center justify-center gap-2 text-[10px] font-black text-slate-700 uppercase tracking-widest mb-4">
-              <ShieldCheck size={12} />
+              <ShieldIcon size={12} />
               <span>{UI_STRINGS.security.local_encryption_hint}</span>
             </div>
             <button 

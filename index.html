@@ -24,14 +24,9 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+      // Fix for environment detection without overwriting actual keys
       if (typeof window.process === 'undefined') {
         window.process = { env: {} };
-      }
-      if (!window.process.env) {
-        window.process.env = {};
-      }
-      if (typeof window.process.env.API_KEY === 'undefined') {
-        window.process.env.API_KEY = "";
       }
       
       tailwind.config = {

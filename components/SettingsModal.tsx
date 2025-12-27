@@ -152,8 +152,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
   }
 
   return (
-    <div className="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-xl flex flex-col items-center overflow-y-auto custom-scrollbar p-4 py-8 md:py-16">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in fade-in duration-300 border border-white/10 flex flex-col my-auto">
+    <div className="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-xl flex flex-col items-center overflow-y-auto custom-scrollbar pt-10 pb-20 px-4">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl animate-in zoom-in fade-in duration-300 border border-white/10 flex flex-col mb-10">
         <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
           <div className="text-left">
             <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{UI_STRINGS.settings.title}</h3>
@@ -292,7 +292,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
           </div>
 
           {/* Danger Zone */}
-          <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800 pb-12">
+          <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800 pb-4">
             <label className="block text-[10px] font-black text-rose-400 dark:text-rose-500 uppercase tracking-[0.2em]">{UI_STRINGS.settings.danger_zone_label}</label>
             {showWipeConfirm ? (
               <div className="p-5 bg-rose-50 dark:bg-rose-900/20 rounded-3xl border-2 border-rose-200 dark:border-rose-800 animate-in zoom-in duration-200">

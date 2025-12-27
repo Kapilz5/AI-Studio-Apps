@@ -4,6 +4,7 @@ import { CreditCard as CardType } from '../types';
 import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCircle, Eye, EyeOff, Lock, Clock, Plus, X, Check, PartyPopper } from 'lucide-react';
 import SecurityAuth from './SecurityAuth';
 import { UI_STRINGS } from '../locales/en';
+import { getNotificationPeriod } from '../utils/storage';
 
 interface CardItemProps {
   card: CardType;
@@ -38,11 +39,15 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
   }, [isSensitiveVisible, revealTimeLeft]);
 
   const expiring = useMemo(() => {
-    const expiryDate = new Date(card.expiryYear, card.expiryMonth - 1);
+    // Card expiry is effectively valid until the last day of the month
+    const expiryDate = new Date(card.expiryYear, card.expiryMonth, 0, 23, 59, 59);
     const now = new Date();
-    const threeMonthsFromNow = new Date();
-    threeMonthsFromNow.setMonth(now.getMonth() + 3);
-    return expiryDate <= threeMonthsFromNow;
+    const period = getNotificationPeriod();
+    const thresholdDate = new Date();
+    thresholdDate.setMonth(now.getMonth() + period);
+    
+    // It's expiring if the end of month is within the warning period
+    return expiryDate <= thresholdDate && expiryDate >= now;
   }, [card.expiryMonth, card.expiryYear]);
 
   const formatCurrency = (amount: number) => {
@@ -141,7 +146,13 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
         onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd}
       >
         <div className="relative transition-all duration-500 flex flex-col">
-          <div className={`card-gradient relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${expiring ? 'ring-4 ring-rose-400/40' : ''}`}>
+          <div className={`card-gradient relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${expiring ? 'ring-4 ring-rose-400/80 shadow-rose-500/40 scale-[1.02]' : ''}`}>
+            {expiring && (
+              <div className="absolute top-4 left-4 bg-rose-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest z-20 flex items-center gap-1 shadow-lg animate-pulse">
+                <AlertCircle size={10} />
+                <span>Expiring Soon</span>
+              </div>
+            )}
             <div className="flex justify-between items-start z-10">
               <div className="w-14 h-10 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-lg shadow-inner opacity-90" />
               <div className="flex flex-col items-end gap-3">
