@@ -161,8 +161,8 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       last4: scannedData.last4 || prev.last4,
       expiryMonth: scannedData.expiryMonth || prev.expiryMonth,
       expiryYear: scannedData.expiryYear || prev.expiryYear,
-      annualFee: scannedData.suggestedAnnualFee || prev.annualFee,
-      waiverTarget: scannedData.suggestedWaiverTarget || prev.waiverTarget,
+      annualFee: Number(scannedData.suggestedAnnualFee) || prev.annualFee,
+      creditLimit: Number(scannedData.suggestedCreditLimit) || prev.creditLimit,
     }));
     setShowScanner(false);
     setHasBeenSelected(true);
@@ -188,7 +188,14 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       category: b.category as any
     }));
 
-    onSave({ ...formData, last4 }, benefitsWithIds);
+    onSave({ 
+      ...formData, 
+      last4, 
+      annualFee: Number(formData.annualFee), 
+      creditLimit: Number(formData.creditLimit) || 0,
+      waiverTarget: Number(formData.waiverTarget) || 0,
+      currentSpend: Number(formData.currentSpend) || 0
+    }, benefitsWithIds);
   };
 
   return (
@@ -238,7 +245,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       {showScanner && <CardScanner onScanComplete={handleScanComplete} onCancel={handleScannerCancel} />}
 
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl relative border border-slate-100 dark:border-slate-800 flex flex-col mb-10">
-        <div className="p-8 pb-0">
+        <div className="p-8 pb-0 text-left">
           <div className="flex justify-between items-center mb-8">
             <div className="text-left">
               <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{UI_STRINGS.card_form.onboarding_title}</h2>
@@ -393,7 +400,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.exp_year}</label>
+                <label className="block text-[10px) font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.exp_year}</label>
                 <input
                   type="number"
                   min="2024"
@@ -426,14 +433,36 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
               </div>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">{UI_STRINGS.card_form.network_brand}</label>
+            <div className="md:col-span-1">
+              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Network Brand</label>
               <input
                 type="text"
                 placeholder="Visa, RuPay, etc."
                 value={formData.cardType}
                 onChange={e => setFormData({ ...formData, cardType: e.target.value })}
                 className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold uppercase"
+              />
+            </div>
+
+            <div className="md:col-span-1">
+              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Credit Limit</label>
+              <input
+                type="number"
+                placeholder="0"
+                value={formData.creditLimit}
+                onChange={e => setFormData({ ...formData, creditLimit: Number(e.target.value) })}
+                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
+              />
+            </div>
+            
+            <div className="md:col-span-1">
+              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Annual Fee</label>
+              <input
+                type="number"
+                placeholder="0"
+                value={formData.annualFee}
+                onChange={e => setFormData({ ...formData, annualFee: Number(e.target.value) })}
+                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
               />
             </div>
           </div>
