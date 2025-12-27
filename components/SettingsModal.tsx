@@ -20,13 +20,6 @@ import {
 import SecurityAuth from './SecurityAuth';
 import { UI_STRINGS } from '../locales/en';
 
-interface Story {
-  id: string;
-  text: string;
-  completed: boolean;
-  timestamp: number;
-}
-
 interface SettingsModalProps {
   cards: CreditCard[];
   onCardsSynced: (newCards: CreditCard[]) => void;
@@ -45,21 +38,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [showMpinReset, setShowMpinReset] = useState(false);
   
-  // Local "Story Tracker" states
-  const [stories, setStories] = useState<Story[]>(() => {
-    const saved = localStorage.getItem('cs_project_stories');
-    return saved ? JSON.parse(saved) : [
-      { id: '1', text: 'Smart Furthest Expiry Filter (Name vs Count)', completed: true, timestamp: Date.now() },
-      { id: '2', text: 'Local Project Story Integration', completed: true, timestamp: Date.now() }
-    ];
-  });
-  const [newStory, setNewStory] = useState('');
-
   const googleBtnRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    localStorage.setItem('cs_project_stories', JSON.stringify(stories));
-  }, [stories]);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -139,20 +118,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
     onNotifPeriodChange?.(period);
   };
 
-  const addStory = () => {
-    if (!newStory.trim()) return;
-    setStories([...stories, { id: Date.now().toString(), text: newStory, completed: false, timestamp: Date.now() }]);
-    setNewStory('');
-  };
-
-  const toggleStory = (id: string) => {
-    setStories(stories.map(s => s.id === id ? { ...s, completed: !s.completed } : s));
-  };
-
-  const deleteStory = (id: string) => {
-    setStories(stories.filter(s => s.id !== id));
-  };
-
   const toggleBiometrics = async () => {
     if (isBiometricEnrolled) {
       setBiometricEnrolled(false);
@@ -194,43 +159,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
         </div>
 
         <div className="p-8 space-y-8 text-left">
-          {/* Project Stories / Requirements */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Project Stories (Requirements)</label>
-              <div className="flex items-center gap-1 text-[9px] font-black text-blue-500 uppercase tracking-widest">
-                <BookOpen size={10} />
-                <span>Internal Log</span>
-              </div>
-            </div>
-            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-700 space-y-4">
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="New requirement..." 
-                  value={newStory} 
-                  onChange={e => setNewStory(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addStory()}
-                  className="flex-grow bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button onClick={addStory} className="p-2 bg-blue-600 text-white rounded-xl active:scale-95"><Plus size={18} /></button>
-              </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                {stories.map(story => (
-                  <div key={story.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 group">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <button onClick={() => toggleStory(story.id)} className={story.completed ? 'text-emerald-500' : 'text-slate-300'}>
-                        {story.completed ? <CheckSquare size={18} /> : <Square size={18} />}
-                      </button>
-                      <span className={`text-[11px] font-bold truncate ${story.completed ? 'text-slate-400 line-through' : 'text-slate-700 dark:text-slate-200'}`}>{story.text}</span>
-                    </div>
-                    <button onClick={() => deleteStory(story.id)} className="p-1 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
           {/* Google Account */}
           <div className="space-y-4">
             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Authorized Identity</label>
