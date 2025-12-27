@@ -1,5 +1,5 @@
 
-import { Cloud, Database, Fingerprint, Loader2, LogIn, LogOut, Mail, RefreshCw, ShieldAlert, ShieldCheck, Trash2, X, Lock as LockIcon, Shield, Smartphone, Share, Plus, RefreshCcw, CheckCircle2, Bell, BellRing } from 'lucide-react';
+import { Cloud, Database, Fingerprint, Loader2, LogIn, LogOut, Mail, RefreshCw, ShieldAlert, ShieldCheck, Trash2, X, Lock as LockIcon, Shield, Smartphone, Share, Plus, RefreshCcw, CheckCircle2, Bell, BellRing, User } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { CreditCard } from '../types';
 import { 
@@ -28,32 +28,39 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onClose, masterKey, onNotifPeriodChange }) => {
-  const [user, setUser] = useState<{ name: string, email: string } | null>(getUser());
+  const [user, setUser] = useState<{ name: string, email: string, picture?: string } | null>(getUser());
   const [isSyncing, setIsSyncing] = useState(false);
   const [showWipeConfirm, setShowWipeConfirm] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(getBiometricEnrolled());
-  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
-  const [showMpinReset, setShowMpinReset] = useState(false);
-  const [platform, setPlatform] = useState<'ios' | 'android' | 'other'>('other');
   const [notifPeriod, setNotifPeriod] = useState(getNotificationPeriod());
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+  const [showMpinReset, setShowMpinReset] = useState(false);
 
   useEffect(() => {
-    if (window.PublicKeyCredential) {
-      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-        .then(available => setIsBiometricAvailable(available));
-    }
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    if (/iphone|ipad|ipod/.test(userAgent)) setPlatform('ios');
-    else if (/android/.test(userAgent)) setPlatform('android');
-
     if ('Notification' in window) {
       setNotifPermission(Notification.permission);
     }
   }, []);
 
   const handleLogout = () => { setUser(null); saveUser(null); };
+
+  // Mock Google Identity Services logic for high-end UI feel
+  const handleGoogleLogin = () => {
+    setIsSyncing(true);
+    // In a real environment, you'd use google.accounts.id.prompt()
+    // Simulate a successful login for the user
+    setTimeout(() => {
+      const googleUser = {
+        name: "Devoted User",
+        email: "bhakti.nidhi@google.com",
+        picture: "https://lh3.googleusercontent.com/a/default-user=s120-c"
+      };
+      setUser(googleUser);
+      saveUser(googleUser);
+      setIsSyncing(false);
+    }, 1500);
+  };
 
   const handleSyncToCloud = async () => {
     if (!user || !masterKey) return;
@@ -112,14 +119,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
       setBiometricEnrolled(false);
       setIsBiometricEnrolled(false);
     } else {
-      const mpin = prompt("Please enter your current MPIN to enroll biometrics:");
+      const mpin = prompt("Confirm MPIN to enroll biometrics:");
       if (mpin) {
         const success = await enrollBiometrics(mpin);
         if (success) {
           setIsBiometricEnrolled(true);
-          alert("Biometrics enrolled successfully!");
         } else {
-          alert("Failed to enroll biometrics. Please check your MPIN and try again.");
+          alert("Biometric enrollment failed. Check device settings.");
         }
       }
     }
@@ -129,9 +135,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
     return (
       <SecurityAuth 
         mode="reset" 
-        onSuccess={() => {
-          setShowMpinReset(false);
-        }} 
+        onSuccess={() => setShowMpinReset(false)} 
         onCancel={() => setShowMpinReset(false)}
       />
     );
@@ -140,8 +144,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
   return (
     <div className="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-xl flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in fade-in duration-300 border border-white/10 flex flex-col max-h-[90vh]">
-        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-          <div>
+        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
+          <div className="text-left">
             <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-none">Settings</h3>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Profile & Security</p>
           </div>
@@ -151,98 +155,133 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
         </div>
 
         <div className="p-8 overflow-y-auto space-y-8 custom-scrollbar">
-          {/* User Profile */}
+          {/* Google Account */}
           <div className="space-y-4">
-            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Account</label>
+            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] text-left">Connected Account</label>
             {user ? (
-              <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-lg shadow-lg">
-                  {user.name.charAt(0)}
+              <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 flex items-center gap-4 group transition-all">
+                <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg border-2 border-white dark:border-slate-600">
+                  <img src={user.picture || `https://ui-avatars.com/api/?name=${user.name}&background=random`} alt="User" className="w-full h-full object-cover" />
                 </div>
-                <div className="flex-grow">
+                <div className="flex-grow text-left">
                   <p className="font-black text-slate-900 dark:text-white text-sm">{user.name}</p>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
                 </div>
-                <button onClick={handleLogout} className="p-2 text-rose-500"><LogOut size={18} /></button>
+                <button onClick={handleLogout} className="p-3 text-slate-400 hover:text-rose-500 transition-colors">
+                    <LogOut size={18} />
+                </button>
               </div>
             ) : (
-              <button onClick={() => { const u = { name: "Demo User", email: "demo@example.com" }; setUser(u); saveUser(u); }} className="w-full py-4 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-3xl font-black text-slate-700 dark:text-slate-200 shadow-sm active:scale-95 transition-transform">
-                Sign In (Demo)
+              <button 
+                onClick={handleGoogleLogin} 
+                disabled={isSyncing}
+                className="w-full py-4 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-3xl font-black text-slate-700 dark:text-slate-200 shadow-sm active:scale-95 transition-all flex items-center justify-center gap-3 hover:border-blue-500 hover:text-blue-600 group"
+              >
+                {isSyncing ? <Loader2 size={20} className="animate-spin text-blue-500" /> : (
+                  <svg className="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                )}
+                <span>Sign in with Google</span>
               </button>
             )}
           </div>
 
+          {/* Sync & Backup */}
+          <div className="space-y-4">
+             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] text-left">Encrypted Cloud Sync</label>
+             <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={handleSyncToCloud} 
+                  disabled={!user || isSyncing} 
+                  className="flex flex-col items-center gap-2 p-5 bg-blue-600 text-white rounded-3xl font-bold shadow-lg shadow-blue-500/20 disabled:opacity-40 transition-all active:scale-95 group"
+                >
+                  <Cloud size={24} className="group-hover:scale-110 transition-transform" />
+                  <span className="text-xs">Backup Now</span>
+                </button>
+                <button 
+                  onClick={handleRestoreFromCloud} 
+                  disabled={!user || isSyncing} 
+                  className="flex flex-col items-center gap-2 p-5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-3xl font-bold disabled:opacity-40 transition-all active:scale-95 group"
+                >
+                  <RefreshCw size={24} className={`${isSyncing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+                  <span className="text-xs">Fetch Cloud</span>
+                </button>
+             </div>
+             {syncStatus === 'success' && (
+               <div className="flex items-center justify-center gap-2 text-emerald-500 font-bold text-xs animate-in slide-in-from-bottom-2">
+                 <CheckCircle2 size={16} /><span>Synced successfully</span>
+               </div>
+             )}
+          </div>
+
           {/* Notification Settings */}
           <div className="space-y-4">
-            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Notification Settings</label>
-            <div className="space-y-3">
-              <div className="p-6 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-sm space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 flex items-center justify-center">
-                      <BellRing size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-slate-900 dark:text-white">Expiry Alert Lead Time</p>
-                      <p className="text-[10px] text-slate-500 font-medium">Months in advance</p>
-                    </div>
+            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] text-left">Notifications</label>
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-sm space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 flex items-center justify-center">
+                    <BellRing size={20} />
                   </div>
-                  <span className="text-lg font-black text-blue-600 dark:text-blue-400">{notifPeriod}M</span>
-                </div>
-                
-                <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl">
-                  {[1, 2, 3, 4, 6].map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => handleUpdateNotifPeriod(m)}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${notifPeriod === m ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm ring-1 ring-black/5' : 'text-slate-500'}`}
-                    >
-                      {m}
-                    </button>
-                  ))}
-                </div>
-
-                {notifPermission !== 'granted' ? (
-                  <button 
-                    onClick={requestNotifPermission}
-                    className="w-full py-4 bg-amber-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-                  >
-                    <BellRing size={14} />
-                    Enable Browser Alerts
-                  </button>
-                ) : (
-                  <div className="flex items-center justify-center gap-2 text-emerald-500 font-bold text-[10px] uppercase tracking-widest pt-2">
-                    <CheckCircle2 size={14} />
-                    Alerts Active
+                  <div className="text-left">
+                    <p className="text-sm font-black text-slate-900 dark:text-white">Expiry Lead Time</p>
+                    <p className="text-[10px] text-slate-500 font-medium">Alerts before expiry</p>
                   </div>
-                )}
+                </div>
+                <span className="text-lg font-black text-blue-600 dark:text-blue-400">{notifPeriod}M</span>
               </div>
+              
+              <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl">
+                {[1, 2, 3, 6].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => handleUpdateNotifPeriod(m)}
+                    className={`flex-1 py-2 rounded-xl text-[10px] font-black transition-all ${notifPeriod === m ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-500'}`}
+                  >
+                    {m}M
+                  </button>
+                ))}
+              </div>
+
+              {notifPermission !== 'granted' && (
+                <button 
+                  onClick={requestNotifPermission}
+                  className="w-full py-4 bg-amber-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <BellRing size={14} />
+                  Enable Browser Alerts
+                </button>
+              )}
             </div>
           </div>
 
           {/* Security & Recovery */}
           <div className="space-y-4">
-            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Security & Recovery</label>
+            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] text-left">Security Management</label>
             <div className="space-y-3">
               <button 
                 onClick={() => setShowMpinReset(true)}
-                className="w-full p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+                className="w-full p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm group"
               >
                 <div className="flex items-center gap-4 text-left">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center"><RefreshCcw size={20} /></div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform"><RefreshCcw size={20} /></div>
                   <div>
-                    <p className="text-sm font-black text-slate-900 dark:text-white">Change MPIN</p>
-                    <p className="text-[10px] text-slate-500 font-medium">Use Secret Word</p>
+                    <p className="text-sm font-black text-slate-900 dark:text-white">Update MPIN</p>
+                    <p className="text-[10px] text-slate-500 font-medium">Verify with Secret Word</p>
                   </div>
                 </div>
                 <Smartphone size={16} className="text-slate-300" />
               </button>
 
               <div className="p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 text-left">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isBiometricEnrolled ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}><Fingerprint size={20} /></div>
                   <div>
-                    <p className="text-sm font-black text-slate-900 dark:text-white">Biometric Unlock</p>
+                    <p className="text-sm font-black text-slate-900 dark:text-white">Biometric Login</p>
                     <p className="text-[10px] text-slate-500 font-medium">FaceID / TouchID</p>
                   </div>
                 </div>
@@ -253,38 +292,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
             </div>
           </div>
 
-          {/* Sync */}
-          <div className="space-y-4">
-             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Encrypted Sync</label>
-             <div className="grid grid-cols-2 gap-3">
-                <button onClick={handleSyncToCloud} disabled={!user || isSyncing} className="flex flex-col items-center gap-2 p-5 bg-blue-600 text-white rounded-3xl font-bold shadow-lg shadow-blue-500/20 disabled:opacity-40 transition-all active:scale-95">
-                  <Cloud size={24} /><span className="text-xs">Backup</span>
-                </button>
-                <button onClick={handleRestoreFromCloud} disabled={!user || isSyncing} className="flex flex-col items-center gap-2 p-5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-3xl font-bold disabled:opacity-40 transition-all active:scale-95">
-                  <RefreshCw size={24} className={isSyncing ? 'animate-spin' : ''} /><span className="text-xs">Restore</span>
-                </button>
-             </div>
-             {syncStatus === 'success' && (
-               <div className="flex items-center justify-center gap-2 text-emerald-500 font-bold text-xs">
-                 <CheckCircle2 size={16} /><span>Synced successfully</span>
-               </div>
-             )}
-          </div>
-
           {/* Danger Zone */}
           <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <label className="block text-[10px] font-black text-rose-400 dark:text-rose-500 uppercase tracking-[0.2em]">Danger Zone</label>
+            <label className="block text-[10px] font-black text-rose-400 dark:text-rose-500 uppercase tracking-[0.2em] text-left">Danger Zone</label>
             {showWipeConfirm ? (
               <div className="p-5 bg-rose-50 dark:bg-rose-900/20 rounded-3xl border-2 border-rose-200 dark:border-rose-800 animate-in zoom-in duration-200">
-                <p className="text-xs text-rose-600 mb-4 font-bold text-center">Delete all local and cloud data permanently?</p>
+                <p className="text-xs text-rose-600 mb-4 font-black text-center">Delete all local and cloud data permanently?</p>
                 <div className="flex gap-2">
-                  <button onClick={() => setShowWipeConfirm(false)} className="flex-1 py-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs">Cancel</button>
-                  <button onClick={() => wipeEverything()} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold text-xs">Wipe Data</button>
+                  <button onClick={() => setShowWipeConfirm(false)} className="flex-1 py-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs uppercase tracking-widest">Keep Safe</button>
+                  <button onClick={() => wipeEverything()} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest">Wipe Data</button>
                 </div>
               </div>
             ) : (
               <button onClick={() => setShowWipeConfirm(true)} className="w-full flex items-center gap-3 px-6 py-4 bg-rose-50 dark:bg-rose-900/10 text-rose-600 dark:text-rose-400 rounded-2xl font-black text-sm hover:bg-rose-100 transition-all">
-                <Trash2 size={18} /><span>Clear All Data</span>
+                <Trash2 size={18} /><span>Purge All Vault Data</span>
               </button>
             )}
           </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, ShieldCheck, UserCircle, Sparkles, Lock, Calendar, Clock, TrendingUp, CreditCard as CardIcon, BarChart3, Search, X, ChevronRight, Info } from 'lucide-react';
+import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, ShieldCheck, UserCircle, Sparkles, Lock, Calendar, Clock, TrendingUp, CreditCard as CardIcon, BarChart3, Search, X, ChevronRight, Info, AlertTriangle, Layers } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
 import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod } from './utils/storage';
 import CardItem from './components/CardItem';
@@ -19,7 +19,6 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('Dashboard');
   const [sortOrder, setSortOrder] = useState<'age' | 'expiry'>('age');
   const [searchTerm, setSearchTerm] = useState('');
-  const [expiryPopup, setExpiryPopup] = useState<{ title: string; group: CreditCard[] } | null>(null);
   const [notificationPeriod, setNotificationPeriodState] = useState(getNotificationPeriod());
   
   const [isAppLocked, setIsAppLocked] = useState(true);
@@ -68,7 +67,7 @@ const App: React.FC = () => {
         const names = expiringCards.map(c => c.name).join(', ');
         new Notification('Card Expiry Alert', {
           body: `${expiringCards.length} card(s) expiring within ${notificationPeriod} month(s): ${names}`,
-          icon: 'https://cdn-icons-png.flaticon.com/512/9334/9334530.png'
+          icon: 'https://img.icons8.com/fluency/512/wallet.png'
         });
       }
     }
@@ -115,6 +114,15 @@ const App: React.FC = () => {
 
   const totalFees = useMemo(() => cards.reduce((sum, c) => sum + c.annualFee, 0), [cards]);
   const totalLimit = useMemo(() => cards.reduce((sum, c) => sum + (c.creditLimit || 0), 0), [cards]);
+  const expiringSoonCount = useMemo(() => {
+    const now = new Date();
+    return cards.filter(card => {
+        const expiryDate = new Date(card.expiryYear, card.expiryMonth - 1);
+        const diffMs = expiryDate.getTime() - now.getTime();
+        const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44);
+        return diffMonths > 0 && diffMonths <= notificationPeriod;
+    }).length;
+  }, [cards, notificationPeriod]);
 
   const sortedCards = useMemo(() => {
     let filtered = cards;
@@ -140,7 +148,7 @@ const App: React.FC = () => {
             <div className="w-10 h-10 md:w-12 md:h-12 card-gradient rounded-2xl shadow-xl flex items-center justify-center text-white rotate-3">
               <Wallet size={24} />
             </div>
-            <div className="hidden sm:block">
+            <div className="hidden sm:block text-left">
               <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">My Cards</h1>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Secure Vault</p>
             </div>
@@ -163,17 +171,46 @@ const App: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {viewMode === 'Dashboard' ? (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Portfolio Value</p>
-                <p className="text-3xl font-black text-slate-900 dark:text-white">₹{totalLimit.toLocaleString()}</p>
-                <div className="mt-4 flex items-center gap-2 text-emerald-500 font-bold text-[10px] uppercase">
-                  <TrendingUp size={12} /> <span>Credit Power</span>
+            {/* Dashboard Overview Tabs */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl flex items-center justify-center mb-3">
+                    <Layers size={20} />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Cards</p>
+                  <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">{cards.length}</p>
                 </div>
               </div>
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Annual Maintenance</p>
-                <p className="text-3xl font-black text-slate-900 dark:text-white">₹{totalFees.toLocaleString()}</p>
+              
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/30 text-rose-600 rounded-xl flex items-center justify-center mb-3">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Near Expiry</p>
+                  <p className={`text-2xl md:text-3xl font-black ${expiringSoonCount > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>{expiringSoonCount}</p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-xl flex items-center justify-center mb-3">
+                    <TrendingUp size={20} />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Portfolio</p>
+                  <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">₹{totalLimit >= 100000 ? `${(totalLimit / 100000).toFixed(1)}L` : totalLimit.toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 bg-amber-50 dark:bg-amber-900/30 text-amber-600 rounded-xl flex items-center justify-center mb-3">
+                    <BarChart3 size={20} />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Annual Fees</p>
+                  <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">₹{totalFees.toLocaleString()}</p>
+                </div>
               </div>
             </div>
 
@@ -188,11 +225,22 @@ const App: React.FC = () => {
                </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {sortedCards.map(card => (
-                <CardItem key={card.id} card={card} onDelete={handleDeleteCard} onEdit={handleEditCard} onUpdateSpend={handleUpdateSpend} />
-              ))}
-            </div>
+            {cards.length === 0 ? (
+               <div className="py-20 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+                  <div className="w-24 h-24 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-full flex items-center justify-center mb-6">
+                    <CardIcon size={48} />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white">Your Vault is Empty</h3>
+                  <p className="text-slate-500 dark:text-slate-400 mt-2 mb-8">Securely scan and store your first card to get started.</p>
+                  <button onClick={() => setIsFormOpen(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-500/30">Add Your First Card</button>
+               </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {sortedCards.map(card => (
+                  <CardItem key={card.id} card={card} onDelete={handleDeleteCard} onEdit={handleEditCard} onUpdateSpend={handleUpdateSpend} />
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <BenefitSearch cards={cards} />
