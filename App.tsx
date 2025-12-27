@@ -29,7 +29,6 @@ const App: React.FC = () => {
   const [isSetupRequired, setIsSetupRequired] = useState(false);
   const [masterKey, setMasterKey] = useState<Uint8Array | null>(null);
   
-  // Use a ref to track current unlocked state for the visibility listener
   const isUnlockedRef = useRef(false);
 
   const [isDark, setIsDark] = useState(() => {
@@ -40,7 +39,6 @@ const App: React.FC = () => {
     return false;
   });
 
-  // Handle Theme
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -51,7 +49,6 @@ const App: React.FC = () => {
     }
   }, [isDark]);
 
-  // Initial Security Check & Session Lock on App Visibility Change
   useEffect(() => {
     const checkSecurityStatus = () => {
       const pinHash = getMPINHash();
@@ -66,8 +63,6 @@ const App: React.FC = () => {
     checkSecurityStatus();
 
     const handleVisibilityChange = () => {
-      // ONLY trigger lock if the app was previously unlocked and has a key in memory.
-      // If document becomes hidden and we have a session, we clear it.
       if (document.visibilityState === 'hidden' && isUnlockedRef.current) {
         setIsAppLocked(true);
         setMasterKey(null);
@@ -122,12 +117,11 @@ const App: React.FC = () => {
   const handleEditCard = (card: CreditCard) => { setEditingCard(card); setIsFormOpen(true); };
 
   const totalLimit = useMemo(() => cards.reduce((sum, c) => sum + (Number(c.creditLimit) || 0), 0), [cards]);
-  const totalFees = useMemo(() => cards.reduce((sum, c) => sum + (Number(c.annualFee) || 0), 0), [cards]);
 
   const expiringSoonCount = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentMonth = now.getMonth() + 1;
 
     return cards.filter(card => {
         const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
@@ -135,12 +129,26 @@ const App: React.FC = () => {
     }).length;
   }, [cards, notificationPeriod]);
 
-  const furthestExpiryCard = useMemo(() => {
+  // FIX: Identify multiple cards sharing the maximum expiry date
+  const furthestExpiryInfo = useMemo(() => {
     if (cards.length === 0) return null;
-    return [...cards].sort((a, b) => {
+    
+    // Sort to find the absolute maximum date
+    const sorted = [...cards].sort((a, b) => {
       if (a.expiryYear !== b.expiryYear) return b.expiryYear - a.expiryYear;
       return b.expiryMonth - a.expiryMonth;
-    })[0];
+    });
+    
+    const maxCard = sorted[0];
+    const tiedCards = cards.filter(c => c.expiryYear === maxCard.expiryYear && c.expiryMonth === maxCard.expiryMonth);
+    
+    return {
+      count: tiedCards.length,
+      sampleName: maxCard.name,
+      month: maxCard.expiryMonth,
+      year: maxCard.expiryYear,
+      sampleId: maxCard.id
+    };
   }, [cards]);
 
   const sortedCards = useMemo(() => {
@@ -276,8 +284,9 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* UPDATED Furthest Expiry Widget */}
               <div 
-                onClick={() => furthestExpiryCard && handleHighlightCard(furthestExpiryCard.id)}
+                onClick={() => furthestExpiryInfo && handleHighlightCard(furthestExpiryInfo.sampleId)}
                 className={`p-6 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between transition-all hover:border-purple-300 dark:hover:border-purple-700 cursor-pointer active:scale-95`}
               >
                 <div>
@@ -287,10 +296,12 @@ const App: React.FC = () => {
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Furthest Expiry</p>
                   <div className="truncate">
                     <p className="text-lg md:text-xl font-black text-slate-900 dark:text-white truncate">
-                      {furthestExpiryCard ? furthestExpiryCard.name : '--'}
+                      {furthestExpiryInfo 
+                        ? (furthestExpiryInfo.count > 1 ? `${furthestExpiryInfo.count} Cards` : furthestExpiryInfo.sampleName) 
+                        : '--'}
                     </p>
                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mt-1">
-                      VALID UNTIL: {furthestExpiryCard ? `${String(furthestExpiryCard.expiryMonth).padStart(2, '0')}/${furthestExpiryCard.expiryYear}` : 'N/A'}
+                      VALID UNTIL: {furthestExpiryInfo ? `${String(furthestExpiryInfo.month).padStart(2, '0')}/${furthestExpiryInfo.year}` : 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -378,7 +389,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Security Hint */}
       {cards.length > 0 && viewMode === 'Dashboard' && !isAppLocked && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
            <div className="bg-slate-900/90 dark:bg-blue-600/90 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl backdrop-blur-md border border-white/10 animate-in slide-in-from-bottom-10 duration-700">

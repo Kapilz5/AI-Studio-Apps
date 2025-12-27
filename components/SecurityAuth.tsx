@@ -36,32 +36,58 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
   
   const bioTriggered = useRef(false);
 
+  // Check for hardware support on mount
+  useEffect(() => {
+    if (window.PublicKeyCredential) {
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(available => {
+          setIsBioAvailable(available);
+        })
+        .catch(() => {
+          setIsBioAvailable(false);
+        });
+    }
+  }, []);
+
+  // Handle visibility-aware biometric trigger
   useEffect(() => {
     setMode(initialMode);
     setError('');
     setPin('');
     setConfirmPin('');
     setSecretWord('');
-    
-    // Check if the hardware supports biometrics
-    if (window.PublicKeyCredential) {
-      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-        .then(available => {
-          setIsBioAvailable(available);
-          
-          // Auto-trigger biometric unlock ONLY if enrolled and in verify mode
-          if (initialMode === 'verify' && getBiometricEnrolled() && available && !bioTriggered.current) {
-            bioTriggered.current = true;
-            setTimeout(() => {
-              handleBiometricUnlock();
-            }, 800);
-          }
-        })
-        .catch(() => {
-          setIsBioAvailable(false);
-        });
-    }
-  }, [initialMode]);
+
+    const tryAutoBioUnlock = () => {
+      if (
+        initialMode === 'verify' && 
+        getBiometricEnrolled() && 
+        isBioAvailable && 
+        !bioTriggered.current && 
+        document.visibilityState === 'visible'
+      ) {
+        bioTriggered.current = true;
+        // Small delay to ensure UI has rendered and settled
+        setTimeout(() => {
+          handleBiometricUnlock();
+        }, 800);
+      }
+    };
+
+    // Initial check on mount/mode change
+    tryAutoBioUnlock();
+
+    // Listener for when user returns to tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        tryAutoBioUnlock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [initialMode, isBioAvailable]);
 
   const handleBiometricUnlock = async () => {
     if (isProcessing) return;
@@ -81,10 +107,12 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
         onSuccess(masterKey, cards);
       }
     } catch (err: any) {
+      // If user cancels or it fails, allow retry but don't auto-trigger again immediately
       if (err.name !== 'NotAllowedError') {
         console.error("Biometric unlock error:", err);
         setError("Biometric authentication failed.");
       }
+      bioTriggered.current = false; // Allow re-trigger if they click the button or return again
     } finally {
       setIsProcessing(false);
     }
