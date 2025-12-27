@@ -1,0 +1,7 @@
+{
+  "name": "My Cards",
+  "description": "A high-end personal finance companion to manage credit and debit cards, track expiry, monitor annual fees, and discover optimal benefits using AI-powered search.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
