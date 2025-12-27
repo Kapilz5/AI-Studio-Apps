@@ -10,7 +10,7 @@ import {
   wipeEverything,
   getBiometricEnrolled,
   unlockWithBiometrics,
-  enrollBiometrics
+  enrollBiometricsWithKey
 } from '../utils/storage';
 import { CreditCard } from '../types';
 
@@ -28,7 +28,8 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isBioEnrolled, setIsBioEnrolled] = useState(getBiometricEnrolled());
-  const [useBiometricsDuringSetup, setUseBiometricsDuringSetup] = useState(true);
+  const [useBiometricsDuringSetup, setUseBiometricsDuringSetup] = useState(false); // DEFAULT UNCHECKED
+  const [isBioSetupSuccess, setIsBioSetupSuccess] = useState(false);
   const [isBioAvailable, setIsBioAvailable] = useState(false);
 
   useEffect(() => {
@@ -38,14 +39,12 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
     setConfirmPin('');
     setSecretWord('');
     
-    // Check if hardware biometrics are available AND not blocked by Permissions Policy
     if (window.PublicKeyCredential) {
       PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
         .then(available => {
           setIsBioAvailable(available);
         })
         .catch(() => {
-          // If the policy blocks the check, treat as unavailable
           setIsBioAvailable(false);
         });
     }
@@ -71,6 +70,60 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
     }
   };
 
+  const handleToggleBiometrics = async () => {
+    if (useBiometricsDuringSetup) {
+      // Unchecking
+      setUseBiometricsDuringSetup(false);
+      setIsBioSetupSuccess(false);
+      setError('');
+      return;
+    }
+
+    // Attempting to Check
+    if (pin.length < 4) {
+      setError("Please enter a 4-digit MPIN first before enabling biometrics.");
+      return;
+    }
+
+    setError('');
+    setIsProcessing(true);
+    
+    try {
+      if (!window.navigator.credentials || !window.navigator.credentials.create) {
+        throw new Error("Biometrics not supported or blocked by policy.");
+      }
+
+      // We trigger the native Face/Touch ID prompt immediately to verify the user
+      const challenge = window.crypto.getRandomValues(new Uint8Array(32));
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: "My Cards AI" },
+          user: {
+            id: window.crypto.getRandomValues(new Uint8Array(16)),
+            name: "user@local",
+            displayName: "Local User"
+          },
+          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+          authenticatorSelection: { authenticatorAttachment: "platform" },
+          timeout: 60000
+        }
+      });
+
+      if (credential) {
+        setUseBiometricsDuringSetup(true);
+        setIsBioSetupSuccess(true);
+      }
+    } catch (bioErr: any) {
+      console.warn("Biometric verification failed:", bioErr.message);
+      setError("Biometric verification failed. Please try again or use MPIN only.");
+      setUseBiometricsDuringSetup(false);
+      setIsBioSetupSuccess(false);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -81,17 +134,15 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
         if (pin.length < 4) throw new Error('MPIN must be at least 4 digits.');
         if (pin !== confirmPin) throw new Error('MPINs do not match.');
         if (secretWord.trim().length < 3) throw new Error('Secret Word must be at least 3 characters.');
+        if (useBiometricsDuringSetup && !isBioSetupSuccess) throw new Error('Biometric setup was not completed.');
         
+        // 1. Setup standard security (Master Key + MPIN + Secret Word)
         const masterKey = await setupSecurity(pin, secretWord);
         
-        // If user opted for biometrics, trigger the system enrollment now
-        if (useBiometricsDuringSetup && isBioAvailable) {
-          try {
-            await enrollBiometrics(pin);
-          } catch (bioErr: any) {
-            console.warn("Biometric enrollment skipped or failed:", bioErr.message);
-            // We don't block the setup if biometrics fail (e.g. policy block)
-          }
+        // 2. If biometrics were enabled and verified earlier, persist the master key for bio unlock
+        if (useBiometricsDuringSetup && isBioSetupSuccess) {
+            // Internal call that stores the master key encrypted for bio unlock
+            await enrollBiometricsWithKey(masterKey);
         }
         
         onSuccess(masterKey);
@@ -127,8 +178,15 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
     }
   };
 
+  // Logic: Set credential enabled if basic fields are filled 
+  // AND if biometrics is checked, it must be successfully verified.
+  const isSubmitDisabled = 
+    isProcessing || 
+    pin.length < 4 || 
+    (mode === 'setup' && (confirmPin !== pin || secretWord.trim().length < 3 || (useBiometricsDuringSetup && !isBioSetupSuccess)));
+
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
+    <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-left">
       <div className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in duration-300">
         <div className="flex flex-col items-center text-center space-y-4">
           <div className="w-20 h-20 bg-blue-600 text-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/40">
@@ -173,7 +231,13 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
                 pattern="[0-9]*"
                 placeholder="••••"
                 value={pin}
-                onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+                onChange={e => {
+                    setPin(e.target.value.replace(/\D/g, ''));
+                    if (useBiometricsDuringSetup && e.target.value.length < 4) {
+                        setUseBiometricsDuringSetup(false);
+                        setIsBioSetupSuccess(false);
+                    }
+                }}
                 className="w-full py-5 px-6 bg-white/10 border border-white/20 rounded-3xl text-white text-center text-2xl font-black tracking-[0.5em] focus:ring-4 focus:ring-blue-500/50 outline-none"
                 autoFocus
               />
@@ -195,8 +259,8 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
 
             {mode === 'setup' && isBioAvailable && (
               <div 
-                className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between cursor-pointer active:scale-95 transition-all group"
-                onClick={() => setUseBiometricsDuringSetup(!useBiometricsDuringSetup)}
+                className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer transition-all border active:scale-95 group ${useBiometricsDuringSetup ? 'bg-blue-600/10 border-blue-600/50' : 'bg-white/5 border-white/10'}`}
+                onClick={handleToggleBiometrics}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${useBiometricsDuringSetup ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
@@ -215,7 +279,7 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
           </div>
 
           {error && (
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-500/10 text-rose-400 text-xs font-bold border border-rose-500/20 animate-bounce">
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-500/10 text-rose-400 text-xs font-bold border border-rose-500/20 animate-in slide-in-from-top-1">
               <ShieldAlert size={18} className="shrink-0" />
               <span>{error}</span>
             </div>
@@ -224,8 +288,8 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
           <div className="space-y-3">
             <button
               type="submit"
-              disabled={isProcessing || pin.length < 4}
-              className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95"
+              disabled={isSubmitDisabled}
+              className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black text-lg shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-3 active:scale-95"
             >
               <span>{mode === 'setup' ? 'Set Credentials' : mode === 'reset' ? 'Update Vault' : 'Unlock Now'}</span>
               <ArrowRight size={20} />
@@ -273,7 +337,7 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
           </div>
         </form>
 
-        <div className="pt-8">
+        <div className="pt-8 text-center">
             <div className="flex items-center justify-center gap-2 text-[10px] font-black text-slate-700 uppercase tracking-widest mb-4">
               <ShieldCheck size={12} />
               <span>Local Encryption Only</span>

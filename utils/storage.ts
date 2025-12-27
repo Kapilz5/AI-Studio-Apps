@@ -95,10 +95,7 @@ async function decryptMasterKey(password: string, storageKey: string): Promise<U
 }
 
 // --- Biometric Storage ---
-export const enrollBiometrics = async (mpin: string) => {
-  const masterKey = await unlockWithMPIN(mpin);
-  if (!masterKey) return false;
-
+export const enrollBiometricsWithKey = async (masterKey: Uint8Array) => {
   try {
     if (!window.navigator.credentials || !window.navigator.credentials.create) {
         throw new Error("Web Authentication is not supported in this environment.");
@@ -127,13 +124,18 @@ export const enrollBiometrics = async (mpin: string) => {
     }
   } catch (e: any) {
     console.error("Biometric enrollment error:", e.name, e.message);
-    // If blocked by policy, we treat it as non-enrollable
     if (e.name === 'NotAllowedError' || e.message?.includes('policy')) {
         localStorage.removeItem(BIOMETRICS_ENROLLED_KEY);
     }
     throw e;
   }
   return false;
+};
+
+export const enrollBiometrics = async (mpin: string) => {
+  const masterKey = await unlockWithMPIN(mpin);
+  if (!masterKey) return false;
+  return await enrollBiometricsWithKey(masterKey);
 };
 
 export const unlockWithBiometrics = async (): Promise<Uint8Array | null> => {
