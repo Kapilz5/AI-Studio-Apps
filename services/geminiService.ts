@@ -1,38 +1,38 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Benefit, CardCategory } from "../types";
-import { UI_STRINGS } from "../locales/en";
+import { getAPIKey } from "../utils/storage";
 
 const getAI = () => {
-  // Robustly check for API Key across different build environments
-  let apiKey: string | undefined = undefined;
+  // 1. Priority: Manual Key from Settings (Stored securely/obfuscated)
+  let apiKey = getAPIKey();
 
-  // 1. Check Standard / Vercel / Next.js
-  if (typeof process !== 'undefined' && process.env) {
-    apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || process.env.REACT_APP_API_KEY;
-  }
-
-  // 2. Check Vite / Modern ESM (using try-catch to avoid ReferenceErrors in non-module envs)
+  // 2. Fallback: Environment Variables (Vite/Next.js/React App)
   if (!apiKey) {
-    try {
-      // @ts-ignore
-      if (typeof import.meta !== 'undefined' && import.meta.env) {
-        // @ts-ignore
-        apiKey = import.meta.env.VITE_API_KEY || import.meta.env.NEXT_PUBLIC_API_KEY || import.meta.env.API_KEY;
-      }
-    } catch (e) {
-      // Ignore errors if import.meta is not available
+    if (typeof process !== 'undefined' && process.env) {
+      apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || process.env.REACT_APP_API_KEY;
     }
-  }
-
-  // 3. Last resort: Check global window object (sometimes injected by specific setups)
-  if (!apiKey && typeof window !== 'undefined') {
-    // @ts-ignore
-    apiKey = window.ENV?.API_KEY || window.ENV?.NEXT_PUBLIC_API_KEY;
+    
+    if (!apiKey) {
+      try {
+        // @ts-ignore
+        if (typeof import.meta !== 'undefined' && import.meta.env) {
+          // @ts-ignore
+          apiKey = import.meta.env.VITE_API_KEY || import.meta.env.NEXT_PUBLIC_API_KEY || import.meta.env.API_KEY;
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+    
+    if (!apiKey && typeof window !== 'undefined') {
+       // @ts-ignore
+       apiKey = window.ENV?.API_KEY || window.ENV?.NEXT_PUBLIC_API_KEY;
+    }
   }
   
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
-    console.error("Gemini Error: API Key is missing in all checked environment variables.");
-    throw new Error("API Key is missing. Please check your Vercel/Environment settings for NEXT_PUBLIC_API_KEY.");
+    console.error("Gemini Error: API Key is missing.");
+    throw new Error("Missing API Key. Please enter your Gemini API Key in Settings > AI Configuration.");
   }
   
   return new GoogleGenAI({ apiKey });
@@ -64,7 +64,6 @@ const extractJSON = (text: string) => {
 export const fetchCardBenefits = async (cardName: string, category: CardCategory): Promise<{ benefits: Omit<Benefit, 'id'>[], error?: string }> => {
   try {
     const ai = getAI();
-    // Fallback logic could be implemented here if needed, but we stick to the requested model.
     const modelName = "gemini-3-flash-preview"; 
     
     const response = await ai.models.generateContent({
@@ -141,7 +140,6 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
     return { suggestions: [] };
   } catch (error: any) {
     console.error("Gemini getCardSuggestions Error:", error);
-    // Return the actual error message so the UI can show it (e.g. "API Key Missing")
     return { suggestions: [], error: error.message || "AI Service Error" };
   }
 };

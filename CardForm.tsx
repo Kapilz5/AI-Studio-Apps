@@ -123,13 +123,13 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     setIsFetching(true);
     setValidationMsg('');
     try {
-      const benefits = await fetchCardBenefits(cardName, formData.cardCategory);
-      if (benefits.length > 0) {
-        setPendingBenefits(benefits);
+      const result = await fetchCardBenefits(cardName, formData.cardCategory);
+      if (result.benefits.length > 0) {
+        setPendingBenefits(result.benefits);
         setShowConfirmation(true);
         setSuggestions([]);
       } else {
-        setValidationMsg('AI check completed. No official perks found for this specific name.');
+        setValidationMsg(result.error || 'AI check completed. No official perks found for this specific name.');
         setSuggestions([]);
       }
     } catch (error: any) {

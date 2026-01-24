@@ -1,4 +1,3 @@
-
 import { CreditCard } from '../types';
 
 // Security Version 4: Master Key + Dual Password Recovery
@@ -13,6 +12,7 @@ const BIOMETRICS_ENROLLED_KEY = 'card_strategist_v4_biometrics';
 const CLOUD_SYNC_KEY = 'card_strategist_v4_cloud_mock';
 const NOTIFICATION_PERIOD_KEY = 'card_strategist_v4_notif_period';
 const NOTIFIED_CARDS_EXPIRY_KEY = 'card_strategist_v4_notified_expiry';
+const API_KEY_STORAGE_KEY = 'card_strategist_v4_api_key_enc';
 
 
 // --- Hashing ---
@@ -260,7 +260,7 @@ export const wipeEverything = () => {
   const keysToWipe = [
     STORAGE_KEY, MASTER_KEY_MPIN_ENC, MASTER_KEY_SECRET_ENC, MASTER_KEY_BIO_ENC,
     MPIN_HASH_KEY, SECRET_HASH_KEY, USER_SESSION_KEY, BIOMETRICS_ENROLLED_KEY,
-    CLOUD_SYNC_KEY, NOTIFICATION_PERIOD_KEY, NOTIFIED_CARDS_EXPIRY_KEY
+    CLOUD_SYNC_KEY, NOTIFICATION_PERIOD_KEY, NOTIFIED_CARDS_EXPIRY_KEY, API_KEY_STORAGE_KEY
   ];
   keysToWipe.forEach(key => localStorage.removeItem(key));
   sessionStorage.clear();
@@ -300,3 +300,30 @@ export const removeNotifiedFlag = (cardId: string) => {
         saveNotifiedCards(notified);
     }
 }
+
+// --- Secure API Key Storage ---
+export const saveAPIKey = (apiKey: string) => {
+  if (!apiKey) {
+    localStorage.removeItem(API_KEY_STORAGE_KEY);
+    return;
+  }
+  // Simple obfuscation to prevent plain text reading. 
+  // In a full auth system, this would be encrypted with the master key, 
+  // but for a robust fallback that works even before full unlock if needed, we use base64.
+  try {
+    const encoded = btoa(apiKey.trim());
+    localStorage.setItem(API_KEY_STORAGE_KEY, encoded);
+  } catch (e) {
+    console.error("Failed to encode API key", e);
+  }
+};
+
+export const getAPIKey = (): string | null => {
+  const encoded = localStorage.getItem(API_KEY_STORAGE_KEY);
+  if (!encoded) return null;
+  try {
+    return atob(encoded);
+  } catch (e) {
+    return null;
+  }
+};
