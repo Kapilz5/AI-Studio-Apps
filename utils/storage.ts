@@ -12,7 +12,7 @@ const BIOMETRICS_ENROLLED_KEY = 'card_strategist_v4_biometrics';
 const CLOUD_SYNC_KEY = 'card_strategist_v4_cloud_mock';
 const NOTIFICATION_PERIOD_KEY = 'card_strategist_v4_notif_period';
 const NOTIFIED_CARDS_EXPIRY_KEY = 'card_strategist_v4_notified_expiry';
-const API_KEY_STORAGE_KEY = 'card_strategist_v4_api_key_enc';
+const CUSTOM_API_KEY_STORAGE = 'card_strategist_v4_custom_api_key';
 
 
 // --- Hashing ---
@@ -260,7 +260,7 @@ export const wipeEverything = () => {
   const keysToWipe = [
     STORAGE_KEY, MASTER_KEY_MPIN_ENC, MASTER_KEY_SECRET_ENC, MASTER_KEY_BIO_ENC,
     MPIN_HASH_KEY, SECRET_HASH_KEY, USER_SESSION_KEY, BIOMETRICS_ENROLLED_KEY,
-    CLOUD_SYNC_KEY, NOTIFICATION_PERIOD_KEY, NOTIFIED_CARDS_EXPIRY_KEY, API_KEY_STORAGE_KEY
+    CLOUD_SYNC_KEY, NOTIFICATION_PERIOD_KEY, NOTIFIED_CARDS_EXPIRY_KEY, CUSTOM_API_KEY_STORAGE
   ];
   keysToWipe.forEach(key => localStorage.removeItem(key));
   sessionStorage.clear();
@@ -301,28 +301,27 @@ export const removeNotifiedFlag = (cardId: string) => {
     }
 }
 
-// --- Secure API Key Storage ---
+// --- API Key Fallback Storage (Obfuscated) ---
 export const saveAPIKey = (apiKey: string) => {
-  if (!apiKey) {
-    localStorage.removeItem(API_KEY_STORAGE_KEY);
+  if (!apiKey || apiKey.trim() === '') {
+    localStorage.removeItem(CUSTOM_API_KEY_STORAGE);
     return;
   }
-  // Simple obfuscation to prevent plain text reading. 
-  // In a full auth system, this would be encrypted with the master key, 
-  // but for a robust fallback that works even before full unlock if needed, we use base64.
+  // Basic obfuscation to prevent casual shoulder surfing reading.
+  // We use btoa (Base64) as requested.
   try {
-    const encoded = btoa(apiKey.trim());
-    localStorage.setItem(API_KEY_STORAGE_KEY, encoded);
+    const obfuscated = btoa(apiKey.trim());
+    localStorage.setItem(CUSTOM_API_KEY_STORAGE, obfuscated);
   } catch (e) {
-    console.error("Failed to encode API key", e);
+    console.warn("Failed to save API key", e);
   }
 };
 
 export const getAPIKey = (): string | null => {
-  const encoded = localStorage.getItem(API_KEY_STORAGE_KEY);
-  if (!encoded) return null;
+  const stored = localStorage.getItem(CUSTOM_API_KEY_STORAGE);
+  if (!stored) return null;
   try {
-    return atob(encoded);
+    return atob(stored);
   } catch (e) {
     return null;
   }

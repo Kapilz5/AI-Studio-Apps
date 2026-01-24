@@ -39,7 +39,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
   const [notifPeriod, setNotifPeriod] = useState(getNotificationPeriod());
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [showMpinReset, setShowMpinReset] = useState(false);
+  
+  // API Key State
   const [customKey, setCustomKey] = useState(getAPIKey() || '');
+  const [keySavedStatus, setKeySavedStatus] = useState<'idle' | 'saved'>('idle');
   
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
@@ -146,11 +149,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
       }
     }
   };
-  
-  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const val = e.target.value;
-      setCustomKey(val);
-      saveAPIKey(val);
+
+  const handleSaveApiKey = () => {
+    saveAPIKey(customKey);
+    setKeySavedStatus('saved');
+    setTimeout(() => setKeySavedStatus('idle'), 2000);
   };
 
   if (showMpinReset) {
@@ -177,26 +180,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
         </div>
 
         <div className="p-8 space-y-8 text-left">
-          {/* API Configuration */}
+          
+          {/* AI Configuration Section */}
           <div className="space-y-4">
              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">AI Configuration</label>
              <div className="p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl space-y-3">
                 <div className="flex items-center gap-3">
                    <Key size={18} className="text-blue-500" />
-                   <h4 className="text-sm font-black text-slate-900 dark:text-white">Gemini API Key</h4>
+                   <h4 className="text-sm font-black text-slate-900 dark:text-white">Gemini API Key (Optional)</h4>
                 </div>
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                   Required only if auto-fetch is failing. Key is stored locally.
-                </p>
-                <div className="relative">
+                <div className="flex gap-2">
                   <input 
                     type="password" 
-                    placeholder="AIzaSy..." 
+                    placeholder="Paste key here to fix AI features..." 
                     value={customKey}
-                    onChange={handleApiKeyChange}
-                    className="w-full p-3 pr-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    onChange={(e) => setCustomKey(e.target.value)}
+                    className="flex-grow p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                   />
-                  {customKey && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500"><CheckCircle2 size={14} /></div>}
+                  <button 
+                    onClick={handleSaveApiKey}
+                    className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs uppercase tracking-wider whitespace-nowrap active:scale-95 transition-all"
+                  >
+                    {keySavedStatus === 'saved' ? 'Saved!' : 'Save Key'}
+                  </button>
                 </div>
              </div>
           </div>

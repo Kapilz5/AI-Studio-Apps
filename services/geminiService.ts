@@ -32,7 +32,7 @@ const getAI = () => {
   
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
     console.error("Gemini Error: API Key is missing.");
-    throw new Error("Missing API Key. Please enter your Gemini API Key in Settings > AI Configuration.");
+    throw new Error("API Key missing. Please add it in Settings.");
   }
   
   return new GoogleGenAI({ apiKey });
