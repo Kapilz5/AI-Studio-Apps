@@ -1,11 +1,10 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Benefit, CardCategory } from "../types";
 import { UI_STRINGS } from "../locales/en";
 
 const getAI = () => {
-  // FIX: Vercel requires the NEXT_PUBLIC_ prefix to expose env vars to the browser.
-  const apiKey = process.env.NEXT_PUBLIC_API_KEY;
+  // Use the standard process.env.API_KEY as per AI Studio environment
+  const apiKey = process.env.API_KEY;
   
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
     console.error("Gemini Error: API_KEY is missing or invalid in the environment.");
@@ -13,6 +12,12 @@ const getAI = () => {
   }
   
   return new GoogleGenAI({ apiKey });
+};
+
+// Helper to strip markdown code blocks if present
+const cleanJSON = (text: string) => {
+  if (!text) return "";
+  return text.replace(/```json\n?|```/g, "").trim();
 };
 
 export const fetchCardBenefits = async (cardName: string, category: CardCategory): Promise<Omit<Benefit, 'id'>[]> => {
@@ -44,7 +49,7 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
       },
     });
 
-    const text = response.text;
+    const text = cleanJSON(response.text || "");
     if (!text) return [];
     
     let parsed = JSON.parse(text);
@@ -82,7 +87,9 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
         }
       }
     });
-    const result = JSON.parse(response.text || '{"suggestions":[]}');
+    
+    const text = cleanJSON(response.text || "");
+    const result = JSON.parse(text || '{"suggestions":[]}');
     return result;
   } catch (error) {
     console.error("Gemini getCardSuggestions Error:", error);
@@ -124,7 +131,8 @@ export const analyzeCardImages = async (frontBase64: string, backBase64: string)
       },
     });
 
-    return JSON.parse(response.text || '{}');
+    const text = cleanJSON(response.text || "");
+    return JSON.parse(text || '{}');
   } catch (error) {
     console.error("Gemini analyzeCardImages error:", error);
     return null;

@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Camera, X, Check, RefreshCw, Loader2, Info, ArrowRight, Scan, ShieldCheck, Database, BrainCircuit, AlertTriangle, Sun, Zap, CheckCircle2, RotateCcw, Sparkles } from 'lucide-react';
 import { analyzeCardImages } from '../services/geminiService';
@@ -139,7 +138,9 @@ const CardScanner: React.FC<CardScannerProps> = ({ onScanComplete, onCancel }) =
     if (step === 'front' || step === 'back') startCamera();
     return () => {
       isActive = false;
-      if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
     };
   }, [step]);
 

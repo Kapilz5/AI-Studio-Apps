@@ -1,4 +1,3 @@
-
 import { Cloud, Database, Fingerprint, Loader2, LogIn, LogOut, Mail, RefreshCw, ShieldAlert, ShieldCheck, Trash2, X, Lock as LockIcon, Shield, Smartphone, Share, Plus, RefreshCcw, CheckCircle2, Bell, BellRing, User, BookOpen, ChevronDown, CheckSquare, Square, BellPlus, BellOff } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { CreditCard } from '../types';
@@ -49,25 +48,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
 
   useEffect(() => {
     if (!user && (window as any).google?.accounts?.id) {
-      (window as any).google.accounts.id.initialize({
-        client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
-        callback: (response: any) => {
-          const simulatedUser = {
-            name: "Verified Account",
-            email: "secure.user@gmail.com",
-            picture: "https://lh3.googleusercontent.com/a/default-user=s120-c"
-          };
-          setUser(simulatedUser);
-          saveUser(simulatedUser);
-        }
-      });
-      if (googleBtnRef.current) {
-        (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
-          theme: "outline",
-          size: "large",
-          width: 320,
-          shape: "pill"
+      try {
+        (window as any).google.accounts.id.initialize({
+          client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+          callback: (response: any) => {
+            const simulatedUser = {
+              name: "Verified Account",
+              email: "secure.user@gmail.com",
+              picture: "https://lh3.googleusercontent.com/a/default-user=s120-c"
+            };
+            setUser(simulatedUser);
+            saveUser(simulatedUser);
+          }
         });
+        if (googleBtnRef.current) {
+          (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
+            theme: "outline",
+            size: "large",
+            width: 320,
+            shape: "pill"
+          });
+        }
+      } catch (e) {
+        console.error("Google Sign-in init error", e);
       }
     }
   }, [user]);
@@ -183,7 +186,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
               </div>
             ) : (
               <div className="flex flex-col items-center gap-4">
-                 <div ref={googleBtnRef} className="w-full flex justify-center"></div>
+                 <div ref={googleBtnRef} className="w-full flex justify-center min-h-[44px] bg-slate-50 dark:bg-slate-800/50 rounded-full items-center text-[10px] text-slate-400 border border-dashed border-slate-200 dark:border-slate-700">
+                    <span className="opacity-0">Google Sign-In Placeholder</span>
+                 </div>
                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest text-center italic">Sign in for encrypted cloud backups</p>
               </div>
             )}
