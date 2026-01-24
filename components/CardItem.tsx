@@ -171,7 +171,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
               <div className="flex gap-8 text-left">
                 <div>
                   <p className="text-[10px] uppercase font-black text-white/40 tracking-widest mb-1">Expires</p>
-                  <span className={`font-mono text-lg font-black ${expiring ? 'text-rose-300 underline' : ''}`}>{String(card.expiryMonth).padStart(2, '0')}/{card.expiryYear}</span>
+                  <span className={`font-mono text-lg font-black ${expiring ? 'text-rose-300 underline' : ''}`}>{String(card.expiryMonth).padStart(2, '0')}/{String(card.expiryYear).slice(-2)}</span>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-black text-white/40 tracking-widest mb-1">CVV</p>
