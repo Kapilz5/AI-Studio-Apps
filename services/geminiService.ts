@@ -3,12 +3,12 @@ import { Benefit, CardCategory } from "../types";
 import { UI_STRINGS } from "../locales/en";
 
 const getAI = () => {
-  // Use the standard process.env.API_KEY as per AI Studio environment
-  const apiKey = process.env.API_KEY;
+  // Prioritize NEXT_PUBLIC_API_KEY (Vercel/Client-side) then fall back to API_KEY
+  const apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY;
   
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
-    console.error("Gemini Error: API_KEY is missing or invalid in the environment.");
-    throw new Error("API Key is missing. Please check your settings.");
+    console.error("Gemini Error: API Key is missing. Checked NEXT_PUBLIC_API_KEY and API_KEY.");
+    throw new Error("API Key is missing. Please check your Vercel environment variables.");
   }
   
   return new GoogleGenAI({ apiKey });
