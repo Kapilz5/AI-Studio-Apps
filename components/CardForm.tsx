@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
-import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search, CalendarX } from 'lucide-react';
+import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search, CalendarX, Building2, CreditCard as CardIcon } from 'lucide-react';
 import CardScanner from './CardScanner';
 
 interface CardFormProps {
@@ -25,6 +25,35 @@ const detectCardNetwork = (number: string): string => {
   return '';
 };
 
+// Helper to detect Issuing Bank based on common BIN ranges (India focus + Major globals)
+const detectIssuingBank = (number: string): string => {
+    const clean = number.replace(/\D/g, '');
+    if (clean.length < 4) return '';
+    
+    // HDFC
+    if (/^4629|^5241|^4123|^4056|^6521|^6522|^4051|^4146/.test(clean)) return 'HDFC Bank';
+    // SBI
+    if (/^5044|^5046|^4591|^4329|^3561|^4263|^4216/.test(clean)) return 'SBI Card';
+    // ICICI
+    if (/^4375|^4477|^5176|^5020|^6002|^4018/.test(clean)) return 'ICICI Bank';
+    // Axis
+    if (/^4400|^5249|^4631|^6528|^4491/.test(clean)) return 'Axis Bank';
+    // Amex (Bank is usually Amex itself)
+    if (/^34|^37/.test(clean)) return 'American Express';
+    // Kotak
+    if (/^4532|^4166|^4249/.test(clean)) return 'Kotak Bank';
+    // Citi
+    if (/^5497|^5121|^4340|^4312/.test(clean)) return 'Citi';
+    // IndusInd
+    if (/^4213|^5102|^4148/.test(clean)) return 'IndusInd Bank';
+    // RBL
+    if (/^4222|^4128/.test(clean)) return 'RBL Bank';
+    // IDFC
+    if (/^4008|^4269/.test(clean)) return 'IDFC First Bank';
+    
+    return '';
+}
+
 const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, cards = [] }) => {
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -33,6 +62,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   const [validationMsg, setValidationMsg] = useState<string>('');
   const [isTyping, setIsTyping] = useState(false);
   const [hasBeenSelected, setHasBeenSelected] = useState(false);
+  const [detectedBank, setDetectedBank] = useState<string>('');
   
   const [formData, setFormData] = useState<CardFormData>({
     name: '',
@@ -77,6 +107,10 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       });
       setFetchedBenefits(initialData.benefits);
       setHasBeenSelected(true);
+      // Run detection on load for existing data
+      if (initialData.fullNumber) {
+          setDetectedBank(detectIssuingBank(initialData.fullNumber));
+      }
     }
   }, [initialData]);
 
@@ -90,7 +124,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     });
   }, [formData.fullNumber, cards, initialData]);
 
-  // Expiry Validation Logic
+  // Expiry Validation Logic - Non-blocking warning
   const isExpired = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -102,6 +136,35 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     
     return false;
   }, [formData.expiryMonth, formData.expiryYear]);
+
+  // Handle Input Changes with Bank Auto-Detection
+  const handleNumberChange = (val: string) => {
+    const cleanVal = val.replace(/\D/g, '');
+    const formatted = cleanVal.match(/.{1,4}/g)?.join(' ') || cleanVal;
+    
+    // 1. Detect Network
+    const network = detectCardNetwork(cleanVal);
+    
+    // 2. Detect Bank
+    const bank = detectIssuingBank(cleanVal);
+    setDetectedBank(bank);
+
+    setFormData(prev => {
+        const newData = { 
+            ...prev, 
+            fullNumber: formatted.slice(0, 19),
+            // Update network automatically if found
+            cardType: network || prev.cardType 
+        };
+
+        // 3. Auto-fill Name if empty and bank is detected
+        if (bank && (!prev.name || prev.name.trim() === '')) {
+            newData.name = `${bank} ${network} Card`.trim();
+        }
+        
+        return newData;
+    });
+  };
 
   useEffect(() => {
     if (hasBeenSelected) {
@@ -200,6 +263,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Expiry check removed from submit blocker as per request (not a hard stop)
     if (!formData.name || !formData.expiryMonth || !formData.expiryYear || duplicateCard) return;
 
     const cleanNum = getNormalizedNumber(formData.fullNumber);
@@ -327,7 +391,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                       setFormData({ ...formData, name: e.target.value });
                       setHasBeenSelected(false);
                     }}
-                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold`}
+                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold truncate pr-10`}
                   />
                   {isTyping && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 size={18} className="animate-spin text-blue-500" /></div>}
                 </div>
@@ -380,23 +444,17 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   placeholder="0000 0000 0000 0000"
                   required
                   value={formData.fullNumber}
-                  onChange={e => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    const formatted = val.match(/.{1,4}/g)?.join(' ') || val;
-                    
-                    // Auto-detect network based on number
-                    const network = detectCardNetwork(val);
-                    
-                    setFormData({ 
-                        ...formData, 
-                        fullNumber: formatted.slice(0, 19),
-                        // Only update card type if we found a match, otherwise keep user input
-                        cardType: network || formData.cardType 
-                    });
-                  }}
+                  onChange={e => handleNumberChange(e.target.value)}
                   className={`w-full pl-14 pr-5 py-4 rounded-2xl border-2 ${duplicateCard ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-xl tracking-[0.1em]`}
                 />
               </div>
+              {/* Detected Bank Badge */}
+              {detectedBank && (
+                  <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 animate-in fade-in slide-in-from-top-1">
+                      <Building2 size={12} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Detected: {detectedBank}</span>
+                  </div>
+              )}
               {duplicateCard && (
                 <div className="mt-3 flex items-center gap-3 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 rounded-2xl animate-in shake">
                   <ShieldAlert size={18} className="text-rose-500" />
@@ -466,13 +524,16 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
             <div className="md:col-span-2">
               <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Network Brand</label>
-              <input
-                type="text"
-                placeholder="Visa, RuPay, etc."
-                value={formData.cardType}
-                onChange={e => setFormData({ ...formData, cardType: e.target.value })}
-                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold uppercase"
-              />
+              <div className="relative">
+                  <CardIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Visa, RuPay, etc."
+                    value={formData.cardType}
+                    onChange={e => setFormData({ ...formData, cardType: e.target.value })}
+                    className="w-full pl-14 pr-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold uppercase"
+                  />
+              </div>
             </div>
           </div>
 
