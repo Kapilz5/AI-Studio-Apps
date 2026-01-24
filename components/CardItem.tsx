@@ -5,34 +5,21 @@ import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCi
 import SecurityAuth from './SecurityAuth';
 import { UI_STRINGS } from '../locales/en';
 import { getNotificationPeriod } from '../utils/storage';
-import SpendUpdateModal from './SpendUpdateModal';
 
 interface CardItemProps {
   card: CardType;
   onDelete: (id: string) => void;
   onEdit: (card: CardType) => void;
   onUpdateSpend?: (id: string, amount: number) => void;
-  isHighlighted?: boolean;
 }
 
-const NetworkLogo: React.FC<{ type?: string }> = ({ type }) => {
-  const t = (type || '').toLowerCase();
-  const containerClass = "flex items-center justify-center h-7 px-2.5 bg-white rounded-lg shadow-sm border border-white/20";
-  if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-[11px] tracking-tighter leading-none">VISA</span></div>;
-  if (t.includes('mastercard')) return <div className="flex items-center -space-x-2 h-7"><div className="w-5 h-5 rounded-full bg-[#eb001b]" /><div className="w-5 h-5 rounded-full bg-[#f79e1b] opacity-90" /></div>;
-  if (t.includes('amex') || t.includes('american')) return <div className="h-7 w-9 bg-[#016fd0] rounded-lg flex items-center justify-center border border-white/20 shadow-sm overflow-hidden"><span className="text-[9px] font-black text-white italic tracking-tighter">AMEX</span></div>;
-  if (t.includes('rupay')) return <div className={containerClass}><div className="text-[10px] font-black italic tracking-tighter leading-none"><span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span></div></div>;
-  return <LucideCreditCard size={22} className="text-white/60 drop-shadow-md" />;
-};
-
-const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpend, isHighlighted }) => {
+const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpend }) => {
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSensitiveVisible, setIsSensitiveVisible] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [revealTimeLeft, setRevealTimeLeft] = useState(0);
-  const [isSpendModalOpen, setIsSpendModalOpen] = useState(false);
   
   const startX = useRef(0);
   const currentX = useRef(0);
@@ -51,6 +38,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     return () => clearInterval(timer);
   }, [isSensitiveVisible, revealTimeLeft]);
 
+  // FIX: Match month-based difference logic with App.tsx
   const expiring = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -120,15 +108,19 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     return num;
   };
 
-  const handleSaveSpend = (amount: number) => {
-    onUpdateSpend?.(card.id, amount);
-    setIsSpendModalOpen(false);
+  const renderNetworkLogo = (type?: string) => {
+    const t = (type || '').toLowerCase();
+    const containerClass = "flex items-center justify-center h-7 px-2.5 bg-white rounded-lg shadow-sm border border-white/20";
+    if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-[11px] tracking-tighter leading-none">VISA</span></div>;
+    if (t.includes('mastercard')) return <div className="flex items-center -space-x-2 h-7"><div className="w-5 h-5 rounded-full bg-[#eb001b]" /><div className="w-5 h-5 rounded-full bg-[#f79e1b] opacity-90" /></div>;
+    if (t.includes('amex') || t.includes('american')) return <div className="h-7 w-9 bg-[#016fd0] rounded-lg flex items-center justify-center border border-white/20 shadow-sm overflow-hidden"><span className="text-[9px] font-black text-white italic tracking-tighter">AMEX</span></div>;
+    if (t.includes('rupay')) return <div className={containerClass}><div className="text-[10px] font-black italic tracking-tighter leading-none"><span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span></div></div>;
+    return <LucideCreditCard size={22} className="text-white/60 drop-shadow-md" />;
   };
 
   return (
-    <div id={`card-${card.id}`} className={`relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-300 group text-left transition-all ${isHighlighted ? 'ring-8 ring-purple-500/20 scale-105 z-20 rounded-[3rem]' : ''}`}>
+    <div className="relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-300 group text-left">
       {showAuthModal && <SecurityAuth mode="verify" onSuccess={onAuthSuccess} onCancel={() => setShowAuthModal(false)} />}
-      {isSpendModalOpen && <SpendUpdateModal cardName={card.name} onSave={handleSaveSpend} onCancel={() => setIsSpendModalOpen(false)} />}
       <div className="absolute inset-0 flex justify-end items-stretch p-2">
         <button onClick={() => { setShowConfirm(true); setSwipeOffset(0); }} className="w-[110px] h-full bg-rose-600 text-white rounded-[2.5rem] flex flex-col items-center justify-center shadow-lg transition-transform active:scale-95">
           <Trash2 size={24} className="mb-1" />
@@ -171,7 +163,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
             </div>
             <div className="z-10">
               <div className="flex items-center gap-4 mb-3">
-                <NetworkLogo type={card.cardType} />
+                {renderNetworkLogo(card.cardType)}
                 <h3 className="text-2xl font-black truncate tracking-tight">{card.name}</h3>
               </div>
               <div className="flex items-center space-x-2 text-white/70 font-mono text-xl tracking-[0.2em]">{formatFullNumber(card.fullNumber)}</div>
@@ -210,7 +202,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
               </div>
               <div className="flex justify-between items-center">
                 <p className="text-sm font-black">{formatCurrency(card.currentSpend)} / {formatCurrency(card.waiverTarget)}</p>
-                <button onClick={() => setIsSpendModalOpen(true)} className="text-xs font-black text-white bg-slate-900 px-5 py-2.5 rounded-xl active:scale-95 transition-all">Add</button>
+                <button onClick={() => { const val = prompt("Enter spend amount to add:"); if (val && !isNaN(Number(val))) onUpdateSpend?.(card.id, Number(val)); }} className="text-xs font-black text-white bg-slate-900 px-5 py-2.5 rounded-xl active:scale-95 transition-all">Add</button>
               </div>
             </div>
           )}

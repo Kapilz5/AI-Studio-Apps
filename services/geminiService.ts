@@ -1,9 +1,11 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Benefit, CardCategory } from "../types";
 import { UI_STRINGS } from "../locales/en";
 
 const getAI = () => {
-  const apiKey = process.env.API_KEY;
+  // FIX: Vercel requires the NEXT_PUBLIC_ prefix to expose env vars to the browser.
+  const apiKey = process.env.NEXT_PUBLIC_API_KEY;
   
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
     console.error("Gemini Error: API_KEY is missing or invalid in the environment.");

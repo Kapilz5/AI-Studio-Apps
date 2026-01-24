@@ -1,23 +1,13 @@
+
 import React, { useState, useMemo } from 'react';
 import { CreditCard, BenefitCategory } from '../types';
-import { CATEGORIES, CategoryIcon, CATEGORY_COLORS } from '../constants';
+import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
 import { Search, ChevronRight, Trophy, Sparkles, Star, CreditCard as LucideCreditCard, AlertCircle } from 'lucide-react';
 import { UI_STRINGS } from '../locales/en';
 
 interface BenefitSearchProps {
   cards: CreditCard[];
 }
-
-const BrandLogo: React.FC<{ type?: string }> = ({ type }) => {
-  const t = (type || '').toLowerCase();
-  const containerClass = "w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg rotate-3 group-hover:rotate-0 transition-transform overflow-hidden bg-white border border-slate-100 dark:border-slate-800";
-
-  if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-[10px] tracking-tighter leading-none">VISA</span></div>;
-  if (t.includes('mastercard')) return <div className={containerClass}><div className="flex -space-x-1.5 items-center"><div className="w-3.5 h-3.5 rounded-full bg-[#eb001b]" /><div className="w-3.5 h-3.5 rounded-full bg-[#f79e1b] opacity-90" /></div></div>;
-  if (t.includes('amex') || t.includes('american')) return <div className={`${containerClass} bg-[#016fd0] border-white/20`}><span className="text-[7px] font-black text-white italic">AMEX</span></div>;
-  if (t.includes('rupay')) return <div className={containerClass}><div className="text-[8px] font-black italic tracking-tighter leading-none"><span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span></div></div>;
-  return <div className={`${containerClass} card-gradient border-none`}><LucideCreditCard size={18} className="text-white/80" /></div>;
-};
 
 const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,6 +61,17 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
     return relevantBenefits.sort((a, b) => b.score - a.score)[0] || null;
   }, [cards, selectedCategory]);
 
+  const renderBrandLogo = (type?: string) => {
+    const t = (type || '').toLowerCase();
+    const containerClass = "w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg rotate-3 group-hover:rotate-0 transition-transform overflow-hidden bg-white border border-slate-100 dark:border-slate-800";
+
+    if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-[10px] tracking-tighter leading-none">VISA</span></div>;
+    if (t.includes('mastercard')) return <div className={containerClass}><div className="flex -space-x-1.5 items-center"><div className="w-3.5 h-3.5 rounded-full bg-[#eb001b]" /><div className="w-3.5 h-3.5 rounded-full bg-[#f79e1b] opacity-90" /></div></div>;
+    if (t.includes('amex') || t.includes('american')) return <div className={`${containerClass} bg-[#016fd0] border-white/20`}><span className="text-[7px] font-black text-white italic">AMEX</span></div>;
+    if (t.includes('rupay')) return <div className={containerClass}><div className="text-[8px] font-black italic tracking-tighter leading-none"><span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span></div></div>;
+    return <div className={`${containerClass} card-gradient border-none`}><LucideCreditCard size={18} className="text-white/80" /></div>;
+  };
+
   return (
     <div className="space-y-8 pb-10">
       <div className="space-y-2 text-left">
@@ -94,7 +95,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
            {bestCardForSelected ? (
              <div className="p-8 rounded-[3rem] bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-700 text-white shadow-2xl shadow-blue-500/30 flex flex-col md:flex-row items-center gap-8 border border-white/10 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-12 opacity-5 scale-[2.5] rotate-12 group-hover:scale-[3] transition-transform duration-700">
-                   <CategoryIcon category={selectedCategory as BenefitCategory} />
+                   {CATEGORY_ICONS[selectedCategory as BenefitCategory]}
                 </div>
                 <div className="w-20 h-20 bg-white/20 rounded-[2rem] flex items-center justify-center backdrop-blur-xl shrink-0 border border-white/20 shadow-inner">
                    <Trophy size={40} className="text-yellow-300 animate-bounce-slow" />
@@ -150,7 +151,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
                     : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-200'
                 }`}
             >
-                <span className={selectedCategory === cat ? 'text-white' : 'text-blue-500'}><CategoryIcon category={cat} /></span>
+                <span className={selectedCategory === cat ? 'text-white' : 'text-blue-500'}>{CATEGORY_ICONS[cat]}</span>
                 <span>{cat}</span>
             </button>
             ))}
@@ -166,13 +167,13 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
                   {item.category}
                 </span>
                 <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl group-hover:scale-110 transition-transform">
-                   <CategoryIcon category={item.category} />
+                   {CATEGORY_ICONS[item.category]}
                 </div>
               </div>
               <p className="text-slate-900 dark:text-slate-100 font-bold text-lg mb-8 flex-grow leading-tight">{item.detail}</p>
               <div className="flex items-center justify-between mt-auto pt-6 border-t border-slate-50 dark:border-slate-800">
                 <div className="flex items-center space-x-4">
-                  <BrandLogo type={item.cardType} />
+                  {renderBrandLogo(item.cardType)}
                   <div className="space-y-0.5">
                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">On Card</span>
                      <span className="text-base font-black text-slate-900 dark:text-white truncate max-w-[140px] leading-none">{item.cardName}</span>

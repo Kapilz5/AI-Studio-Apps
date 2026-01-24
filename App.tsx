@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2 } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
 import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod, removeNotifiedFlag } from './utils/storage';
 import CardItem from './components/CardItem';
-import CardForm from './CardForm';
+import CardForm from './components/CardForm';
 import BenefitSearch from './components/BenefitSearch';
 import SecurityAuth from './components/SecurityAuth';
 import SettingsModal from './components/SettingsModal';
@@ -30,7 +31,6 @@ const App: React.FC = () => {
   const [masterKey, setMasterKey] = useState<Uint8Array | null>(null);
   
   const isUnlockedRef = useRef(false);
-  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -77,24 +77,12 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Effect to run notification checks when app is unlocked or data changes
   useEffect(() => {
     if (!isAppLocked && masterKey) {
         checkAndNotifyForExpiringCards(cards, notificationPeriod);
     }
   }, [cards, notificationPeriod, isAppLocked, masterKey]);
-
-  const highlightCard = (cardId: string) => {
-    if (highlightTimeoutRef.current) {
-      clearTimeout(highlightTimeoutRef.current);
-    }
-    setHighlightedCardId(cardId);
-    setTimeout(() => {
-      document.getElementById(`card-${cardId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
-    highlightTimeoutRef.current = setTimeout(() => {
-      setHighlightedCardId(null);
-    }, 3000);
-  };
 
   const handleUnlockSuccess = useCallback((key: Uint8Array, decryptedCards?: CreditCard[]) => {
     setMasterKey(key);
@@ -109,6 +97,7 @@ const App: React.FC = () => {
     let updatedCards: CreditCard[];
 
     if (editingCard) {
+      // If expiry date changed, reset the notification flag for this card
       if (editingCard.expiryMonth !== data.expiryMonth || editingCard.expiryYear !== data.expiryYear) {
         removeNotifiedFlag(editingCard.id);
       }
@@ -136,6 +125,7 @@ const App: React.FC = () => {
     const updated = cards.filter(c => c.id !== id);
     setCards(updated);
     await saveCards(updated, masterKey);
+    // Remove any notification flags for the deleted card
     removeNotifiedFlag(id);
   };
 
@@ -147,10 +137,12 @@ const App: React.FC = () => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
+
     const matches = cards.filter(card => {
         const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
         return monthDiff >= 0 && monthDiff <= notificationPeriod;
     });
+
     return {
       count: matches.length,
       sampleName: matches.length === 1 ? matches[0].name : null,
@@ -164,8 +156,10 @@ const App: React.FC = () => {
       if (a.expiryYear !== b.expiryYear) return b.expiryYear - a.expiryYear;
       return b.expiryMonth - a.expiryMonth;
     });
+    
     const maxCard = sorted[0];
     const tiedCards = cards.filter(c => c.expiryYear === maxCard.expiryYear && c.expiryMonth === maxCard.expiryMonth);
+    
     return {
       count: tiedCards.length,
       sampleName: tiedCards.length === 1 ? maxCard.name : null,
@@ -178,6 +172,7 @@ const App: React.FC = () => {
 
   const sortedCards = useMemo(() => {
     let filtered = cards;
+    
     if (searchTerm) {
       filtered = filtered.filter(c => 
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -185,11 +180,13 @@ const App: React.FC = () => {
         (c.cardType && c.cardType.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
+    
     if (activeFilter === 'near') {
       filtered = nearExpiryInfo.cards;
     } else if (activeFilter === 'furthest' && furthestExpiryInfo) {
       filtered = furthestExpiryInfo.cards;
     }
+
     return [...filtered].sort((a, b) => {
       if (sortOrder === 'limit') return (Number(b.creditLimit) || 0) - (Number(a.creditLimit) || 0);
       if (sortOrder === 'expiry') {
@@ -221,6 +218,7 @@ const App: React.FC = () => {
               <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-none">Personal Finance Vault</p>
             </div>
           </div>
+
           <div className="flex-grow max-w-xs md:max-w-sm">
              <div className="bg-slate-200/50 dark:bg-slate-800/80 p-1 rounded-2xl flex relative h-11 md:h-12 shadow-inner border border-slate-300/20 dark:border-slate-700/50">
                 <div 
@@ -242,6 +240,7 @@ const App: React.FC = () => {
                 </button>
              </div>
           </div>
+
           <div className="flex items-center space-x-2 shrink-0">
             <button onClick={() => setIsDark(!isDark)} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl transition-all border border-slate-200 dark:border-slate-800 active:scale-95">
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
@@ -272,8 +271,9 @@ const App: React.FC = () => {
                   <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">{cards.length} <span className="text-sm text-slate-400 font-bold tracking-normal">Cards</span></p>
                 </div>
               </div>
+              
               <div 
-                onClick={() => { if (nearExpiryInfo.count > 0) { toggleFilter('near'); highlightCard(nearExpiryInfo.cards[0].id); } }}
+                onClick={() => nearExpiryInfo.count > 0 && toggleFilter('near')}
                 className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between relative transition-all active:scale-95 ${activeFilter === 'near' ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-500 ring-2 ring-rose-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'} ${nearExpiryInfo.count > 0 ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-700' : 'opacity-60'}`}
               >
                 <div>
@@ -295,7 +295,7 @@ const App: React.FC = () => {
               </div>
 
               <div 
-                onClick={() => { if (furthestExpiryInfo) { toggleFilter('furthest'); highlightCard(furthestExpiryInfo.sampleId); } }}
+                onClick={() => furthestExpiryInfo && toggleFilter('furthest')}
                 className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between transition-all active:scale-95 ${activeFilter === 'furthest' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500 ring-2 ring-purple-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'} ${furthestExpiryInfo ? 'cursor-pointer hover:border-purple-300 dark:hover:border-purple-700' : 'opacity-60'}`}
               >
                 <div>
@@ -386,14 +386,9 @@ const App: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {sortedCards.map(card => (
-                  <CardItem 
-                    key={card.id} 
-                    card={card} 
-                    onDelete={handleDeleteCard} 
-                    onEdit={handleEditCard} 
-                    onUpdateSpend={handleUpdateSpend} 
-                    isHighlighted={highlightedCardId === card.id}
-                  />
+                  <div key={card.id} id={`card-${card.id}`} className={`transition-all duration-700 ${highlightedCardId === card.id ? 'ring-8 ring-purple-500/20 scale-105 z-20 rounded-[2.5rem]' : ''}`}>
+                    <CardItem card={card} onDelete={handleDeleteCard} onEdit={handleEditCard} onUpdateSpend={handleUpdateSpend} />
+                  </div>
                 ))}
               </div>
             )}
