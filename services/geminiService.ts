@@ -8,23 +8,43 @@ const getAI = () => {
   
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
     console.error("Gemini Error: API_KEY is missing or invalid in the environment.");
-    throw new Error(UI_STRINGS.card_form.ai_setup_incomplete);
+    throw new Error("API Key is missing. Please check your settings.");
   }
   
   return new GoogleGenAI({ apiKey });
 };
 
-// Helper to strip markdown code blocks if present
-const cleanJSON = (text: string) => {
-  if (!text) return "";
-  return text.replace(/```json\n?|```/g, "").trim();
+// Robust JSON extractor that finds the first '{' and last '}'
+const extractJSON = (text: string) => {
+  if (!text) return null;
+  try {
+    // 1. Try cleaning markdown code blocks first
+    const clean = text.replace(/```json\n?|```/g, "").trim();
+    return JSON.parse(clean);
+  } catch (e) {
+    // 2. If that fails, try finding the JSON object boundaries
+    try {
+      const firstOpen = text.indexOf('{');
+      const lastClose = text.lastIndexOf('}');
+      if (firstOpen !== -1 && lastClose !== -1) {
+        const jsonCandidate = text.substring(firstOpen, lastClose + 1);
+        return JSON.parse(jsonCandidate);
+      }
+    } catch (e2) {
+      console.warn("JSON Extraction failed for text:", text.substring(0, 50) + "...");
+    }
+    return null;
+  }
 };
 
-export const fetchCardBenefits = async (cardName: string, category: CardCategory): Promise<Omit<Benefit, 'id'>[]> => {
+export const fetchCardBenefits = async (cardName: string, category: CardCategory): Promise<{ benefits: Omit<Benefit, 'id'>[], error?: string }> => {
   try {
     const ai = getAI();
+    // Fallback logic could be implemented here if needed, but we stick to the requested model.
+    const modelName = "gemini-3-flash-preview"; 
+    
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: modelName,
       contents: { 
         parts: [{ 
           text: `Extract official benefits for the Indian ${category} card: "${cardName}".
@@ -49,18 +69,18 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
       },
     });
 
-    const text = cleanJSON(response.text || "");
-    if (!text) return [];
-    
-    let parsed = JSON.parse(text);
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = extractJSON(response.text || "");
+    if (Array.isArray(parsed)) {
+      return { benefits: parsed };
+    }
+    return { benefits: [] };
   } catch (error: any) {
     console.error(`Gemini fetchCardBenefits Error:`, error);
-    throw new Error(error.message || "Could not fetch benefits. Please try again later.");
+    return { benefits: [], error: error.message || "Service unavailable" };
   }
 };
 
-export const getCardSuggestions = async (userInput: string, category: CardCategory): Promise<{ suggestions: string[], message?: string }> => {
+export const getCardSuggestions = async (userInput: string, category: CardCategory): Promise<{ suggestions: string[], error?: string }> => {
   if (!userInput || userInput.trim().length < 2) return { suggestions: [] };
   
   try {
@@ -88,12 +108,17 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
       }
     });
     
-    const text = cleanJSON(response.text || "");
-    const result = JSON.parse(text || '{"suggestions":[]}');
-    return result;
-  } catch (error) {
-    console.error("Gemini getCardSuggestions Error:", error);
+    const parsed = extractJSON(response.text || "");
+    const suggestions = parsed?.suggestions;
+    
+    if (Array.isArray(suggestions)) {
+      return { suggestions };
+    }
     return { suggestions: [] };
+  } catch (error: any) {
+    console.error("Gemini getCardSuggestions Error:", error);
+    // Return the actual error message so the UI can show it (e.g. "API Key Missing")
+    return { suggestions: [], error: error.message || "AI Service Error" };
   }
 };
 
@@ -131,8 +156,7 @@ export const analyzeCardImages = async (frontBase64: string, backBase64: string)
       },
     });
 
-    const text = cleanJSON(response.text || "");
-    return JSON.parse(text || '{}');
+    return extractJSON(response.text || "") || {};
   } catch (error) {
     console.error("Gemini analyzeCardImages error:", error);
     return null;

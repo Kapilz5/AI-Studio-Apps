@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { CreditCard, BenefitCategory } from '../types';
 import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
@@ -9,6 +8,43 @@ interface BenefitSearchProps {
   cards: CreditCard[];
 }
 
+// Semantic mapping for query expansion
+const KEYWORD_ALIASES: Record<string, string[]> = {
+  // Fuel & Auto
+  'petrol': ['fuel', 'oil', 'diesel', 'gas', 'surcharge', 'pump'],
+  'diesel': ['fuel', 'oil', 'petrol', 'gas', 'surcharge'],
+  'fuel': ['petrol', 'diesel', 'oil', 'gas', 'surcharge', 'station'],
+  'gas': ['fuel', 'cng', 'petrol'],
+
+  // Travel & Commute
+  'travel': ['flight', 'hotel', 'airline', 'airport', 'train', 'bus', 'booking', 'yatra', 'makemytrip', 'easemytrip', 'lounge'],
+  'flight': ['air', 'travel', 'indigo', 'vistara', 'air india', 'airport'],
+  'airport': ['lounge', 'terminal', 'travel', 'access', 'priority pass'],
+  'lounge': ['airport', 'access', 'priority pass', 'dreamfolks'],
+  'train': ['irctc', 'rail', 'railway'],
+  'cab': ['uber', 'ola', 'taxi', 'ride'],
+  
+  // Entertainment
+  'movie': ['cinema', 'film', 'ticket', 'bookmyshow', 'pvr', 'inox', 'theatre', 'entertainment', 'show'],
+  'entertainment': ['movie', 'cinema', 'ott', 'netflix', 'prime', 'hotstar', 'subscription'],
+  
+  // Food & Dining
+  'food': ['dining', 'restaurant', 'swiggy', 'zomato', 'eats', 'delivery', 'burger', 'pizza', 'cafe'],
+  'dining': ['restaurant', 'food', 'buffet', 'hotel', 'dinner', 'lunch'],
+  'grocery': ['supermarket', 'bigbasket', 'blinkit', 'instamart', 'zepto', 'kirana', 'daily'],
+
+  // Shopping
+  'shopping': ['amazon', 'flipkart', 'myntra', 'ajio', 'tata', 'reliance', 'mall', 'retail', 'store', 'brand'],
+  'online': ['amazon', 'flipkart', 'e-commerce', 'web'],
+
+  // Bills & Utilities
+  'bill': ['utility', 'electricity', 'water', 'gas', 'recharge', 'mobile', 'broadband', 'dth'],
+  'utility': ['bill', 'electricity'],
+  
+  // Health
+  'health': ['medical', 'hospital', 'pharmacy', 'medicine', 'doctor', 'apollo', '1mg', 'pharmeasy'],
+};
+
 const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<BenefitCategory | 'All'>('All');
@@ -16,16 +52,38 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
   const filteredBenefits = useMemo(() => {
     const results: { cardName: string; category: BenefitCategory; detail: string; cardId: string; cardType?: string }[] = [];
     
+    // Pre-calculate search tokens
+    const normalizedSearch = searchTerm.toLowerCase().trim();
+    let searchTokens: string[] = [];
+    
+    if (normalizedSearch) {
+      searchTokens = [normalizedSearch]; // Always include the exact term
+      
+      // Expand with aliases
+      Object.keys(KEYWORD_ALIASES).forEach(key => {
+        if (normalizedSearch.includes(key)) {
+          searchTokens.push(...KEYWORD_ALIASES[key]);
+        }
+      });
+    }
+
     cards.forEach(card => {
       card.benefits.forEach(benefit => {
-        const matchesSearch = searchTerm === '' || 
-          benefit.detail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          benefit.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          card.name.toLowerCase().includes(searchTerm.toLowerCase());
-          
         const matchesCategory = selectedCategory === 'All' || benefit.category === selectedCategory;
         
-        if (matchesSearch && matchesCategory) {
+        if (!matchesCategory) return;
+
+        let matchesSearch = false;
+        
+        if (normalizedSearch === '') {
+            matchesSearch = true;
+        } else {
+            const content = `${benefit.detail} ${benefit.category} ${card.name}`.toLowerCase();
+            // Check if any token matches the content
+            matchesSearch = searchTokens.some(token => content.includes(token));
+        }
+        
+        if (matchesSearch) {
           results.push({
             cardName: card.name,
             category: benefit.category,
@@ -88,6 +146,11 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-14 pr-6 py-6 rounded-[2.5rem] bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all dark:text-white text-xl font-bold"
         />
+        {searchTerm && (
+            <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">Smart Search Active</span>
+            </div>
+        )}
       </div>
 
       {selectedCategory !== 'All' && (
