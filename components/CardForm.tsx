@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
-import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search } from 'lucide-react';
+import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search, CalendarX } from 'lucide-react';
 import CardScanner from './CardScanner';
 
 interface CardFormProps {
@@ -13,6 +13,17 @@ interface CardFormProps {
 
 // Normalized duplication check helper
 const getNormalizedNumber = (num: string) => num.replace(/[\s-]/g, '');
+
+// Helper to detect network based on IIN/BIN ranges
+const detectCardNetwork = (number: string): string => {
+  const clean = number.replace(/\D/g, '');
+  if (clean.match(/^4/)) return 'Visa';
+  if (clean.match(/^5[1-5]/) || clean.match(/^2[2-7]/)) return 'Mastercard';
+  if (clean.match(/^3[47]/)) return 'Amex';
+  if (clean.match(/^60/) || clean.match(/^65/) || clean.match(/^8[12]/) || clean.match(/^508/)) return 'RuPay'; // Common RuPay ranges
+  if (clean.match(/^6011/)) return 'Discover';
+  return '';
+};
 
 const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, cards = [] }) => {
   const [showScanner, setShowScanner] = useState(false);
@@ -78,6 +89,19 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       return getNormalizedNumber(c.fullNumber) === currentNum;
     });
   }, [formData.fullNumber, cards, initialData]);
+
+  // Expiry Validation Logic
+  const isExpired = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // Check if year is past, or if year is current but month is past
+    if (formData.expiryYear < currentYear) return true;
+    if (formData.expiryYear === currentYear && formData.expiryMonth < currentMonth) return true;
+    
+    return false;
+  }, [formData.expiryMonth, formData.expiryYear]);
 
   useEffect(() => {
     if (hasBeenSelected) {
@@ -303,7 +327,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                       setFormData({ ...formData, name: e.target.value });
                       setHasBeenSelected(false);
                     }}
-                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') || validationMsg.includes('unavailable') || validationMsg.includes('Error') || validationMsg.includes('Missing') ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold`}
+                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold`}
                   />
                   {isTyping && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 size={18} className="animate-spin text-blue-500" /></div>}
                 </div>
@@ -319,9 +343,9 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
               </div>
 
               {((suggestions.length > 0 && !hasBeenSelected) || (validationMsg !== '')) && !isTyping && (
-                <div className={`mt-3 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 ${validationMsg.includes('correct') || validationMsg.includes('unavailable') || validationMsg.includes('Error') || validationMsg.includes('Missing') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100'}`}>
-                  <div className={`flex items-start gap-3 text-[10px] font-black uppercase tracking-widest mb-3 ${validationMsg.includes('correct') || validationMsg.includes('unavailable') || validationMsg.includes('Error') || validationMsg.includes('Missing') ? 'text-rose-600' : 'text-amber-700'}`}>
-                    {validationMsg.includes('correct') || validationMsg.includes('unavailable') || validationMsg.includes('Error') || validationMsg.includes('Missing') ? <AlertCircle size={14} /> : <Search size={14} />}
+                <div className={`mt-3 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 ${validationMsg.includes('correct') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100'}`}>
+                  <div className={`flex items-start gap-3 text-[10px] font-black uppercase tracking-widest mb-3 ${validationMsg.includes('correct') ? 'text-rose-600' : 'text-amber-700'}`}>
+                    {validationMsg.includes('correct') ? <AlertCircle size={14} /> : <Search size={14} />}
                     <span>{validationMsg}</span>
                   </div>
                   {suggestions.length > 0 && (
@@ -359,7 +383,16 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   onChange={e => {
                     const val = e.target.value.replace(/\D/g, '');
                     const formatted = val.match(/.{1,4}/g)?.join(' ') || val;
-                    setFormData({ ...formData, fullNumber: formatted.slice(0, 19) });
+                    
+                    // Auto-detect network based on number
+                    const network = detectCardNetwork(val);
+                    
+                    setFormData({ 
+                        ...formData, 
+                        fullNumber: formatted.slice(0, 19),
+                        // Only update card type if we found a match, otherwise keep user input
+                        cardType: network || formData.cardType 
+                    });
                   }}
                   className={`w-full pl-14 pr-5 py-4 rounded-2xl border-2 ${duplicateCard ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-xl tracking-[0.1em]`}
                 />
@@ -388,14 +421,14 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                     const val = Math.min(12, Math.max(1, Number(e.target.value)));
                     setFormData({ ...formData, expiryMonth: isNaN(val) ? 1 : val });
                   }}
-                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
+                  className={`w-full px-5 py-4 rounded-2xl border-2 ${isExpired ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/10' : 'border-slate-100 dark:border-slate-700'} dark:bg-slate-800 dark:text-white outline-none font-bold`}
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Exp Year</label>
                 <input
                   type="number"
-                  min="2024"
+                  min="2020"
                   max="2099"
                   required
                   placeholder="YYYY"
@@ -404,10 +437,16 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                     const val = Number(e.target.value);
                     setFormData({ ...formData, expiryYear: isNaN(val) ? 2028 : val });
                   }}
-                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
+                  className={`w-full px-5 py-4 rounded-2xl border-2 ${isExpired ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/10' : 'border-slate-100 dark:border-slate-700'} dark:bg-slate-800 dark:text-white outline-none font-bold`}
                 />
               </div>
             </div>
+            {isExpired && (
+                <div className="md:col-span-2 -mt-4 flex items-center gap-2 text-amber-600 dark:text-amber-500 animate-in fade-in">
+                    <CalendarX size={14} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Card has expired (Allowed for archive)</span>
+                </div>
+            )}
 
             <div>
               <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Security CVV</label>

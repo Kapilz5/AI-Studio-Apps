@@ -121,7 +121,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
 
   const renderBrandLogo = (type?: string) => {
     const t = (type || '').toLowerCase();
-    const containerClass = "w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg rotate-3 group-hover:rotate-0 transition-transform overflow-hidden bg-white border border-slate-100 dark:border-slate-800";
+    const containerClass = "w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg rotate-3 group-hover:rotate-0 transition-transform overflow-hidden bg-white border border-slate-100 dark:border-slate-800 shrink-0";
 
     if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-[10px] tracking-tighter leading-none">VISA</span></div>;
     if (t.includes('mastercard')) return <div className={containerClass}><div className="flex -space-x-1.5 items-center"><div className="w-3.5 h-3.5 rounded-full bg-[#eb001b]" /><div className="w-3.5 h-3.5 rounded-full bg-[#f79e1b] opacity-90" /></div></div>;
@@ -163,13 +163,13 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
                 <div className="w-20 h-20 bg-white/20 rounded-[2rem] flex items-center justify-center backdrop-blur-xl shrink-0 border border-white/20 shadow-inner">
                    <Trophy size={40} className="text-yellow-300 animate-bounce-slow" />
                 </div>
-                <div className="flex-grow text-center md:text-left space-y-2">
+                <div className="flex-grow text-center md:text-left space-y-2 min-w-0">
                    <div className="flex items-center justify-center md:justify-start gap-2">
                       <Sparkles size={14} className="text-yellow-300" />
                       <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-100">{UI_STRINGS.benefits_explorer.ai_recommendation}</p>
                    </div>
-                   <h3 className="text-3xl font-black tracking-tight">{bestCardForSelected.card.name}</h3>
-                   <p className="text-base font-bold text-blue-50 leading-relaxed max-w-xl">{bestCardForSelected.benefit.detail}</p>
+                   <h3 className="text-3xl font-black tracking-tight truncate">{bestCardForSelected.card.name}</h3>
+                   <p className="text-base font-bold text-blue-50 leading-relaxed max-w-xl line-clamp-2">{bestCardForSelected.benefit.detail}</p>
                 </div>
                 <div className="shrink-0">
                    <div className="flex items-center gap-2 bg-black/30 px-6 py-3 rounded-2xl border border-white/10 backdrop-blur-md">
@@ -233,16 +233,16 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
                    {CATEGORY_ICONS[item.category]}
                 </div>
               </div>
-              <p className="text-slate-900 dark:text-slate-100 font-bold text-lg mb-8 flex-grow leading-tight">{item.detail}</p>
+              <p className="text-slate-900 dark:text-slate-100 font-bold text-lg mb-8 flex-grow leading-tight line-clamp-3">{item.detail}</p>
               <div className="flex items-center justify-between mt-auto pt-6 border-t border-slate-50 dark:border-slate-800">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 min-w-0">
                   {renderBrandLogo(item.cardType)}
-                  <div className="space-y-0.5">
+                  <div className="space-y-0.5 min-w-0">
                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">On Card</span>
-                     <span className="text-base font-black text-slate-900 dark:text-white truncate max-w-[140px] leading-none">{item.cardName}</span>
+                     <span className="block text-base font-black text-slate-900 dark:text-white truncate max-w-[140px] leading-none" title={item.cardName}>{item.cardName}</span>
                   </div>
                 </div>
-                <button className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-all">
+                <button className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-all shrink-0">
                   <ChevronRight size={20} />
                 </button>
               </div>

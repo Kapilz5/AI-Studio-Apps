@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CreditCard as CardType } from '../types';
 import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCircle, Eye, EyeOff, Lock, Clock, Plus, X, Check, PartyPopper } from 'lucide-react';
@@ -110,12 +109,12 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
 
   const renderNetworkLogo = (type?: string) => {
     const t = (type || '').toLowerCase();
-    const containerClass = "flex items-center justify-center h-7 px-2.5 bg-white rounded-lg shadow-sm border border-white/20";
+    const containerClass = "flex items-center justify-center h-7 px-2.5 bg-white rounded-lg shadow-sm border border-white/20 shrink-0";
     if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-[11px] tracking-tighter leading-none">VISA</span></div>;
-    if (t.includes('mastercard')) return <div className="flex items-center -space-x-2 h-7"><div className="w-5 h-5 rounded-full bg-[#eb001b]" /><div className="w-5 h-5 rounded-full bg-[#f79e1b] opacity-90" /></div>;
-    if (t.includes('amex') || t.includes('american')) return <div className="h-7 w-9 bg-[#016fd0] rounded-lg flex items-center justify-center border border-white/20 shadow-sm overflow-hidden"><span className="text-[9px] font-black text-white italic tracking-tighter">AMEX</span></div>;
+    if (t.includes('mastercard')) return <div className="flex items-center -space-x-2 h-7 shrink-0"><div className="w-5 h-5 rounded-full bg-[#eb001b]" /><div className="w-5 h-5 rounded-full bg-[#f79e1b] opacity-90" /></div>;
+    if (t.includes('amex') || t.includes('american')) return <div className="h-7 w-9 bg-[#016fd0] rounded-lg flex items-center justify-center border border-white/20 shadow-sm overflow-hidden shrink-0"><span className="text-[9px] font-black text-white italic tracking-tighter">AMEX</span></div>;
     if (t.includes('rupay')) return <div className={containerClass}><div className="text-[10px] font-black italic tracking-tighter leading-none"><span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span></div></div>;
-    return <LucideCreditCard size={22} className="text-white/60 drop-shadow-md" />;
+    return <LucideCreditCard size={22} className="text-white/60 drop-shadow-md shrink-0" />;
   };
 
   return (
@@ -161,10 +160,10 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
                 </button>
               </div>
             </div>
-            <div className="z-10">
+            <div className="z-10 min-w-0">
               <div className="flex items-center gap-4 mb-3">
                 {renderNetworkLogo(card.cardType)}
-                <h3 className="text-2xl font-black truncate tracking-tight">{card.name}</h3>
+                <h3 className="text-2xl font-black truncate tracking-tight min-w-0" title={card.name}>{card.name}</h3>
               </div>
               <div className="flex items-center space-x-2 text-white/70 font-mono text-xl tracking-[0.2em]">{formatFullNumber(card.fullNumber)}</div>
             </div>
