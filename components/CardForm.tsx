@@ -31,25 +31,29 @@ const detectIssuingBank = (number: string): string => {
     if (clean.length < 4) return '';
     
     // HDFC
-    if (/^4629|^5241|^4123|^4056|^6521|^6522|^4051|^4146/.test(clean)) return 'HDFC Bank';
+    if (/^4629|^5241|^4123|^4056|^6521|^6522|^4051|^4146|^4017|^4055|^4057|^4508|^4743/.test(clean)) return 'HDFC Bank';
     // SBI
-    if (/^5044|^5046|^4591|^4329|^3561|^4263|^4216/.test(clean)) return 'SBI Card';
+    if (/^5044|^5046|^4591|^4329|^3561|^4263|^4216|^4592|^6002/.test(clean)) return 'SBI Card';
     // ICICI
-    if (/^4375|^4477|^5176|^5020|^6002|^4018/.test(clean)) return 'ICICI Bank';
-    // Axis
-    if (/^4400|^5249|^4631|^6528|^4491/.test(clean)) return 'Axis Bank';
+    if (/^4375|^4477|^5176|^5020|^4018|^4611|^4003|^4004/.test(clean)) return 'ICICI Bank';
+    // Axis - Added 4514 (MyZone)
+    if (/^4514|^4400|^5249|^4631|^6528|^4491|^4005|^4539/.test(clean)) return 'Axis Bank';
     // Amex (Bank is usually Amex itself)
     if (/^34|^37/.test(clean)) return 'American Express';
-    // Kotak
-    if (/^4532|^4166|^4249/.test(clean)) return 'Kotak Bank';
+    // Kotak - Removed 4514
+    if (/^4532|^4166|^4249|^4061/.test(clean)) return 'Kotak Bank';
     // Citi
     if (/^5497|^5121|^4340|^4312/.test(clean)) return 'Citi';
     // IndusInd
-    if (/^4213|^5102|^4148/.test(clean)) return 'IndusInd Bank';
+    if (/^4213|^5102|^4148|^4065/.test(clean)) return 'IndusInd Bank';
     // RBL
-    if (/^4222|^4128/.test(clean)) return 'RBL Bank';
+    if (/^4222|^4128|^4014/.test(clean)) return 'RBL Bank';
     // IDFC
-    if (/^4008|^4269/.test(clean)) return 'IDFC First Bank';
+    if (/^4008|^4269|^4441/.test(clean)) return 'IDFC First Bank';
+    // Standard Chartered
+    if (/^4502|^5156|^5258|^4336/.test(clean)) return 'Standard Chartered';
+    // HSBC
+    if (/^4451|^5404|^5231/.test(clean)) return 'HSBC';
     
     return '';
 }
@@ -147,7 +151,13 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     
     // 2. Detect Bank
     const bank = detectIssuingBank(cleanVal);
-    setDetectedBank(bank);
+    
+    // Set detected bank or clear it if number is wiped
+    if (cleanVal.length === 0) {
+        setDetectedBank('');
+    } else {
+        setDetectedBank(bank);
+    }
 
     setFormData(prev => {
         const newData = { 
@@ -157,8 +167,11 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
             cardType: network || prev.cardType 
         };
 
-        // 3. Auto-fill Name if empty and bank is detected
-        if (bank && (!prev.name || prev.name.trim() === '')) {
+        // 3. Logic: If user clears number, clear name. If bank detected and name empty, auto-fill.
+        if (cleanVal.length === 0) {
+            newData.name = '';
+            newData.cardType = '';
+        } else if (bank && (!prev.name || prev.name.trim() === '')) {
             newData.name = `${bank} ${network} Card`.trim();
         }
         
