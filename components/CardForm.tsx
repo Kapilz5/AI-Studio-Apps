@@ -32,7 +32,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     cvv: '',
     issueDate: new Date().toISOString().split('T')[0],
     expiryMonth: new Date().getMonth() + 1,
-    // Default to 3 years from now, formatted as 2 digits
+    // Default to 3 years from now, formatted as 2 digits (YY)
     expiryYear: (new Date().getFullYear() + 3) % 100,
     annualFee: 0,
     creditLimit: 0,
@@ -57,7 +57,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         cvv: initialData.cvv || '',
         issueDate: initialData.issueDate,
         expiryMonth: initialData.expiryMonth,
-        // Show YY in the form
+        // Show YY in the form by modding 100
         expiryYear: initialData.expiryYear % 100,
         annualFee: initialData.annualFee,
         creditLimit: initialData.creditLimit,
@@ -87,7 +87,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     
-    // Normalize to YYYY for validation
+    // Normalize to YYYY for validation (Assumes 2000s)
     const inputYear = formData.expiryYear < 100 ? 2000 + formData.expiryYear : formData.expiryYear;
     
     // Check if year is past, or if year is current but month is past
@@ -179,7 +179,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   };
 
   const handleScanComplete = useCallback((scannedData: any) => {
-    // Normalize scanned year to YY
+    // Normalize scanned year to YY (e.g., 2025 -> 25)
     const scannedYear = scannedData.expiryYear ? scannedData.expiryYear % 100 : undefined;
 
     setFormData(prev => ({
