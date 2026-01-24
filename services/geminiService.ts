@@ -3,12 +3,36 @@ import { Benefit, CardCategory } from "../types";
 import { UI_STRINGS } from "../locales/en";
 
 const getAI = () => {
-  // Prioritize NEXT_PUBLIC_API_KEY (Vercel/Client-side) then fall back to API_KEY
-  const apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY;
+  // Robustly check for API Key across different build environments
+  let apiKey: string | undefined = undefined;
+
+  // 1. Check Standard / Vercel / Next.js
+  if (typeof process !== 'undefined' && process.env) {
+    apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || process.env.REACT_APP_API_KEY;
+  }
+
+  // 2. Check Vite / Modern ESM (using try-catch to avoid ReferenceErrors in non-module envs)
+  if (!apiKey) {
+    try {
+      // @ts-ignore
+      if (typeof import.meta !== 'undefined' && import.meta.env) {
+        // @ts-ignore
+        apiKey = import.meta.env.VITE_API_KEY || import.meta.env.NEXT_PUBLIC_API_KEY || import.meta.env.API_KEY;
+      }
+    } catch (e) {
+      // Ignore errors if import.meta is not available
+    }
+  }
+
+  // 3. Last resort: Check global window object (sometimes injected by specific setups)
+  if (!apiKey && typeof window !== 'undefined') {
+    // @ts-ignore
+    apiKey = window.ENV?.API_KEY || window.ENV?.NEXT_PUBLIC_API_KEY;
+  }
   
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
-    console.error("Gemini Error: API Key is missing. Checked NEXT_PUBLIC_API_KEY and API_KEY.");
-    throw new Error("API Key is missing. Please check your Vercel environment variables.");
+    console.error("Gemini Error: API Key is missing in all checked environment variables.");
+    throw new Error("API Key is missing. Please check your Vercel/Environment settings for NEXT_PUBLIC_API_KEY.");
   }
   
   return new GoogleGenAI({ apiKey });

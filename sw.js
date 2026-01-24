@@ -1,4 +1,4 @@
-const CACHE_NAME = 'my-cards-ai-v9';
+const CACHE_NAME = 'my-cards-ai-v10';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

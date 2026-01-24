@@ -8,8 +8,7 @@ interface CardFormProps {
   onSave: (data: CardFormData, benefits: Benefit[]) => void;
   onCancel: () => void;
   initialData?: CreditCard;
-  // FIX: Changed from tuple [CreditCard] to array CreditCard[] to fix type inference errors
-  cards: CreditCard[]; // Injected via prop
+  cards: CreditCard[];
 }
 
 // Normalized duplication check helper
@@ -70,12 +69,10 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     }
   }, [initialData]);
 
-  // QA FIX: Better normalized duplication detection
   const duplicateCard = useMemo(() => {
     const currentNum = getNormalizedNumber(formData.fullNumber);
     if (!currentNum || currentNum.length < 4) return null;
     
-    // FIX: cards is now correctly typed as CreditCard[], resolving 'never' type errors on lines 79-80
     return cards.find(c => {
       if (initialData && c.id === initialData.id) return false;
       return getNormalizedNumber(c.fullNumber) === currentNum;
@@ -306,7 +303,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                       setFormData({ ...formData, name: e.target.value });
                       setHasBeenSelected(false);
                     }}
-                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold`}
+                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') || validationMsg.includes('unavailable') || validationMsg.includes('Error') || validationMsg.includes('Missing') ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold`}
                   />
                   {isTyping && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 size={18} className="animate-spin text-blue-500" /></div>}
                 </div>
@@ -322,9 +319,9 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
               </div>
 
               {((suggestions.length > 0 && !hasBeenSelected) || (validationMsg !== '')) && !isTyping && (
-                <div className={`mt-3 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 ${validationMsg.includes('correct') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100'}`}>
-                  <div className={`flex items-start gap-3 text-[10px] font-black uppercase tracking-widest mb-3 ${validationMsg.includes('correct') ? 'text-rose-600' : 'text-amber-700'}`}>
-                    {validationMsg.includes('correct') ? <AlertCircle size={14} /> : <Search size={14} />}
+                <div className={`mt-3 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 ${validationMsg.includes('correct') || validationMsg.includes('unavailable') || validationMsg.includes('Error') || validationMsg.includes('Missing') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100'}`}>
+                  <div className={`flex items-start gap-3 text-[10px] font-black uppercase tracking-widest mb-3 ${validationMsg.includes('correct') || validationMsg.includes('unavailable') || validationMsg.includes('Error') || validationMsg.includes('Missing') ? 'text-rose-600' : 'text-amber-700'}`}>
+                    {validationMsg.includes('correct') || validationMsg.includes('unavailable') || validationMsg.includes('Error') || validationMsg.includes('Missing') ? <AlertCircle size={14} /> : <Search size={14} />}
                     <span>{validationMsg}</span>
                   </div>
                   {suggestions.length > 0 && (
