@@ -1,16 +1,19 @@
-
 import React from 'react';
 import { ShoppingCart, Utensils, Film, Fuel, Globe, Plane, Star } from 'lucide-react';
 import { BenefitCategory } from './types';
 
-export const CATEGORY_ICONS: Record<BenefitCategory, React.ReactNode> = {
-  Shopping: <ShoppingCart size={18} />,
-  Food: <Utensils size={18} />,
-  Entertainment: <Film size={18} />,
-  Fuel: <Fuel size={18} />,
-  Forex: <Globe size={18} />,
-  Travel: <Plane size={18} />,
-  Other: <Star size={18} />,
+export const CategoryIcon: React.FC<{ category: BenefitCategory }> = ({ category }) => {
+  switch (category) {
+    case 'Shopping': return <ShoppingCart size={18} />;
+    case 'Food': return <Utensils size={18} />;
+    case 'Entertainment': return <Film size={18} />;
+    case 'Fuel': return <Fuel size={18} />;
+    case 'Forex': return <Globe size={18} />;
+    case 'Travel': return <Plane size={18} />;
+    case 'Other':
+    default:
+      return <Star size={18} />;
+  }
 };
 
 export const CATEGORY_COLORS: Record<BenefitCategory, string> = {

@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Camera, X, Check, RefreshCw, Loader2, Info, ArrowRight, Scan, ShieldCheck, Database, BrainCircuit, AlertTriangle, Sun, Zap, CheckCircle2, RotateCcw, Sparkles } from 'lucide-react';
 import { analyzeCardImages } from '../services/geminiService';
@@ -9,12 +8,24 @@ interface CardScannerProps {
   onCancel: () => void;
 }
 
-const ANALYSIS_PHASES = [
-  { icon: <Scan className="text-blue-400" size={20} />, text: UI_STRINGS.scanner.extracting_text },
-  { icon: <ShieldCheck className="text-emerald-400" size={20} />, text: UI_STRINGS.scanner.identifying_security },
-  { icon: <Database className="text-purple-400" size={20} />, text: UI_STRINGS.scanner.referencing_db },
-  { icon: <BrainCircuit className="text-amber-400" size={20} />, text: UI_STRINGS.scanner.finalizing_profile },
+type AnalysisPhaseKey = 'extract' | 'security' | 'db' | 'finalize';
+
+const ANALYSIS_PHASES: { key: AnalysisPhaseKey, text: string }[] = [
+  { key: 'extract', text: UI_STRINGS.scanner.extracting_text },
+  { key: 'security', text: UI_STRINGS.scanner.identifying_security },
+  { key: 'db', text: UI_STRINGS.scanner.referencing_db },
+  { key: 'finalize', text: UI_STRINGS.scanner.finalizing_profile },
 ];
+
+const PhaseIcon: React.FC<{ phaseKey: AnalysisPhaseKey }> = ({ phaseKey }) => {
+  switch (phaseKey) {
+    case 'extract': return <Scan className="text-blue-400" size={20} />;
+    case 'security': return <ShieldCheck className="text-emerald-400" size={20} />;
+    case 'db': return <Database className="text-purple-400" size={20} />;
+    case 'finalize': return <BrainCircuit className="text-amber-400" size={20} />;
+    default: return null;
+  }
+};
 
 interface QualityScore {
   brightness: number;
@@ -204,7 +215,7 @@ const CardScanner: React.FC<CardScannerProps> = ({ onScanComplete, onCancel }) =
     }
   };
 
-  const renderViewfinder = () => {
+  const Viewfinder: React.FC = () => {
     if (step === 'analyzing') {
       const progress = ((analysisPhase + 1) / ANALYSIS_PHASES.length) * 100;
       return (
@@ -221,7 +232,7 @@ const CardScanner: React.FC<CardScannerProps> = ({ onScanComplete, onCancel }) =
             <div className="space-y-3 bg-white/5 p-4 rounded-2xl border border-white/10 text-left text-left">
                {ANALYSIS_PHASES.map((phase, idx) => (
                  <div key={idx} className={`flex items-center space-x-3 transition-all duration-500 ${idx === analysisPhase ? 'opacity-100 translate-x-1' : idx < analysisPhase ? 'opacity-40' : 'opacity-20'}`}>
-                    {idx < analysisPhase ? <CheckCircle2 size={16} className="text-emerald-400" /> : phase.icon}
+                    {idx < analysisPhase ? <CheckCircle2 size={16} className="text-emerald-400" /> : <PhaseIcon phaseKey={phase.key} />}
                     <span className={`text-sm font-bold ${idx === analysisPhase ? 'text-white' : 'text-slate-400'}`}>{phase.text}</span>
                  </div>
                ))}
@@ -297,7 +308,7 @@ const CardScanner: React.FC<CardScannerProps> = ({ onScanComplete, onCancel }) =
           <button onClick={onCancel} className="p-3 bg-white/10 rounded-2xl transition-all"><X size={24} /></button>
         </div>
         <div className="relative flex-grow bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border-8 border-slate-800/50 min-h-[350px]">
-          {renderViewfinder()}
+          <Viewfinder />
         </div>
         {(step === 'front' || step === 'back') && !isProcessing && (
           <div className="py-10 flex flex-col items-center gap-4">

@@ -3,7 +3,7 @@
   "name": "My Cards AI",
   "short_name": "My Cards",
   "description": "AI-powered credit and debit card manager with zero-knowledge local storage.",
-  "start_url": "./index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#2563eb",
