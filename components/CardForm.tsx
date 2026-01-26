@@ -206,7 +206,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
     const cleanNum = getNormalizedNumber(formData.fullNumber);
     const last4 = cleanNum.length >= 4 ? cleanNum.slice(-4) : formData.last4;
-    // Normalize year to YYYY for storage
     const finalYear = formData.expiryYear < 100 ? 2000 + formData.expiryYear : formData.expiryYear;
 
     const benefitsWithIds: Benefit[] = fetchedBenefits.map((b, i) => ({

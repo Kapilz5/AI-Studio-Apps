@@ -169,7 +169,6 @@ export const UI_STRINGS = {
     section_new: "New Benefits",
     section_covered: "Already Covered",
     section_similar: "Similar / Redundant",
-    analysis_failed: "Could not auto-analyze this card. You may enter benefits manually for comparison.",
   },
   scanner: {
     analyzing_title: "AI Vision Engine",

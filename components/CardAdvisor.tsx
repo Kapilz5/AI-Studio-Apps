@@ -42,10 +42,10 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
       if (res) {
         setResult(res);
       } else {
-        setError(UI_STRINGS.advisor.analysis_failed);
+        setError("AI could not analyze this card.");
       }
     } catch (err: any) {
-      setError(err.message || UI_STRINGS.advisor.analysis_failed);
+      setError(err.message || "Analysis failed.");
     } finally {
       setLoading(false);
     }
