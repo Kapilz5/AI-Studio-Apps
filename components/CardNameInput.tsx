@@ -111,14 +111,14 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
       </div>
 
       {showDropdown && (suggestions.length > 0 || error) && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-[60] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-top-2">
+        <div className="absolute top-full left-0 right-0 mt-2 z-[999] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-top-2 max-h-64 flex flex-col">
           {suggestions.length > 0 && (
             <>
-              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700 shrink-0">
                 <Sparkles size={12} className="text-blue-500" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">AI Suggestions</span>
               </div>
-              <div className="max-h-60 overflow-y-auto custom-scrollbar">
+              <div className="overflow-y-auto custom-scrollbar">
                 {suggestions.map((s, idx) => (
                   <button
                     key={idx}
@@ -133,7 +133,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
             </>
           )}
           {error && (
-            <div className="p-3 bg-amber-50 dark:bg-amber-900/10 flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/10 flex items-center gap-2 text-amber-600 dark:text-amber-400 shrink-0">
               <AlertCircle size={14} />
               <span className="text-[10px] font-bold">{error}</span>
             </div>

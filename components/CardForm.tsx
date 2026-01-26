@@ -107,7 +107,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         return;
       }
 
-      // FIX: Pass apiKey as the 3rd argument
       const result = await fetchCardBenefits(cardName, formData.cardCategory, apiKey);
       if (result.benefits.length > 0) {
         setPendingBenefits(result.benefits);
