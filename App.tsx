@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2, Lightbulb } from 'lucide-react';
+import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2 } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
 import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod, removeNotifiedFlag } from './utils/storage';
 import CardItem from './components/CardItem';
@@ -8,11 +8,10 @@ import CardForm from './components/CardForm';
 import BenefitSearch from './components/BenefitSearch';
 import SecurityAuth from './components/SecurityAuth';
 import SettingsModal from './components/SettingsModal';
-import CardAdvisor from './components/CardAdvisor';
 import { UI_STRINGS } from './locales/en';
 import { checkAndNotifyForExpiringCards } from './utils/notifications';
 
-type ViewMode = 'Dashboard' | 'Explorer' | 'Advisor';
+type ViewMode = 'Dashboard' | 'Explorer';
 type ActiveFilter = 'none' | 'near' | 'furthest';
 
 const INACTIVITY_TIMEOUT_MS = 60 * 1000; // 60 seconds inactivity timeout
@@ -272,35 +271,24 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-grow max-w-[20rem] md:max-w-lg">
+          <div className="flex-grow max-w-xs md:max-w-sm">
              <div className="bg-slate-200/50 dark:bg-slate-800/80 p-1 rounded-2xl flex relative h-11 md:h-12 shadow-inner border border-slate-300/20 dark:border-slate-700/50">
                 <div 
-                  className={`absolute top-1 bottom-1 w-[calc(33.33%-3px)] bg-white dark:bg-slate-600 rounded-xl shadow-md transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-                    viewMode === 'Dashboard' ? 'translate-x-0' : 
-                    viewMode === 'Explorer' ? 'translate-x-[calc(100%+4px)]' : 
-                    'translate-x-[calc(200%+8px)]'
-                  }`}
+                  className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-slate-600 rounded-xl shadow-md transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${viewMode === 'Explorer' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}`}
                 />
                 <button 
                   onClick={() => setViewMode('Dashboard')}
                   className={`flex-1 flex items-center justify-center gap-2 relative z-10 transition-colors duration-300 ${viewMode === 'Dashboard' ? 'text-blue-600 dark:text-white font-black' : 'text-slate-500 font-bold'}`}
                 >
                   <LayoutGrid size={18} />
-                  <span className="text-[10px] uppercase tracking-widest hidden md:inline">{UI_STRINGS.navigation.wallet}</span>
+                  <span className="text-[10px] uppercase tracking-widest hidden md:inline">Wallet</span>
                 </button>
                 <button 
                   onClick={() => setViewMode('Explorer')}
                   className={`flex-1 flex items-center justify-center gap-2 relative z-10 transition-colors duration-300 ${viewMode === 'Explorer' ? 'text-blue-600 dark:text-white font-black' : 'text-slate-500 font-bold'}`}
                 >
                   <Sparkles size={18} />
-                  <span className="text-[10px] uppercase tracking-widest hidden md:inline">{UI_STRINGS.navigation.benefits}</span>
-                </button>
-                <button 
-                  onClick={() => setViewMode('Advisor')}
-                  className={`flex-1 flex items-center justify-center gap-2 relative z-10 transition-colors duration-300 ${viewMode === 'Advisor' ? 'text-blue-600 dark:text-white font-black' : 'text-slate-500 font-bold'}`}
-                >
-                  <Lightbulb size={18} />
-                  <span className="text-[10px] uppercase tracking-widest hidden md:inline">{UI_STRINGS.navigation.advisor}</span>
+                  <span className="text-[10px] uppercase tracking-widest hidden md:inline">Benefits</span>
                 </button>
              </div>
           </div>
@@ -462,10 +450,6 @@ const App: React.FC = () => {
                 ))}
               </div>
             )}
-          </div>
-        ) : viewMode === 'Advisor' ? (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {masterKey && <CardAdvisor cards={cards} masterKey={masterKey} onOpenSettings={() => setIsSettingsOpen(true)} />}
           </div>
         ) : (
           <BenefitSearch cards={cards} />

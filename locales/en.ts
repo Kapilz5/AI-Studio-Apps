@@ -37,7 +37,6 @@ export const UI_STRINGS = {
   navigation: {
     wallet: "Wallet",
     benefits: "Benefits",
-    advisor: "Advisor",
   },
   card_form: {
     onboarding_title: "Onboarding",
@@ -152,23 +151,6 @@ export const UI_STRINGS = {
     no_results_subtitle: "Add cards with these benefits to see them here.",
     empty_category: "No {category} Benefits",
     all_categories: "All Categories",
-  },
-  advisor: {
-    title: "Card Advisor",
-    subtitle: "Analyze if a new card adds value to your existing portfolio.",
-    input_label: "Card Name to Analyze",
-    input_placeholder: "e.g. Amex Platinum Travel",
-    analyze_btn: "Analyze Value",
-    analyzing: "Comparing with your vault...",
-    verdict_recommended: "APPLY",
-    verdict_skip: "SKIP",
-    verdict_optional: "OPTIONAL",
-    score_label: "Value Score",
-    reasoning_label: "AI Reasoning",
-    empty_vault_warning: "Add cards to your vault first to get comparative advice.",
-    section_new: "New Benefits",
-    section_covered: "Already Covered",
-    section_similar: "Similar / Redundant",
   },
   scanner: {
     analyzing_title: "AI Vision Engine",

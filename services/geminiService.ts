@@ -1,5 +1,5 @@
 
-import { Benefit, CardCategory, CreditCard } from "../types";
+import { Benefit, CardCategory } from "../types";
 
 // Privacy Regex Patterns
 const PAN_REGEX = /\b(?:\d[ -]*?){13,19}\b/; // Matches 13-19 digit sequences (Card Numbers)
@@ -197,71 +197,5 @@ export const analyzeCardImages = async (frontBase64: string, backBase64: string,
   } catch (error) {
     console.error("Gemini analyzeCardImages error:", error);
     return null;
-  }
-};
-
-export interface AdvisorResult {
-  recommendation: "Apply" | "Skip" | "Optional";
-  reasoning: string;
-  score: number;
-  newBenefits: string[];
-  alreadyCovered: string[];
-  similarBenefits: string[];
-}
-
-export const analyzePortfolioRecommendation = async (newCardName: string, existingCards: CreditCard[], apiKey: string): Promise<AdvisorResult | null> => {
-  try {
-    validatePrivacy(newCardName);
-
-    // PRIVACY FILTER: Extract ONLY non-sensitive benefit fields.
-    // Explicitly exclude: fullNumber, cvv, expiryMonth, expiryYear.
-    const safePortfolio = existingCards.map(c => ({
-      cardName: c.name,
-      network: c.cardType,
-      category: c.cardCategory,
-      
-      // Financials (Non-Sensitive)
-      annualFee: c.annualFee,
-      feeWaiverCondition: c.waiverTarget > 0 ? `Waived on spending ${c.waiverTarget}` : c.waiverCondition,
-
-      // Perks & Benefits
-      welcomeBenefits: c.bestOffer || "None",
-      benefitsList: c.benefits.map(b => `${b.category}: ${b.detail}`)
-    }));
-
-    const prompt = {
-      parts: [{
-        text: `You are a credit card expert advisor. The user has the following existing portfolio of cards: 
-        ${JSON.stringify(safePortfolio, null, 2)}
-        
-        The user is considering applying for a NEW card: "${newCardName}".
-        
-        Task: Compare the new card against the existing portfolio.
-        Analyze if this new card adds UNIQUE value (e.g. better rewards rate, new category coverage like Lounge/Fuel/Forex, or better fee structure) or if it is redundant/overlapping.
-        
-        Strictly follow the JSON schema below.
-        
-        Schema:
-        {
-          "recommendation": "Apply" | "Skip" | "Optional",
-          "score": number (0-100, where >75 is Apply, <40 is Skip),
-          "reasoning": "Concise summary (max 2 sentences) on why.",
-          "newBenefits": ["List of unique benefits this card adds that are NOT in the portfolio"],
-          "alreadyCovered": ["List of benefits strictly redundant with existing cards"],
-          "similarBenefits": ["List of benefits that overlap but might have slight differences"]
-        }`
-      }]
-    };
-
-    const responseText = await callGeminiProxy(prompt, apiKey);
-    const parsed = extractJSON(responseText || "");
-    
-    if (parsed && parsed.recommendation) {
-      return parsed as AdvisorResult;
-    }
-    return null;
-  } catch (error) {
-    console.error("Gemini analyzePortfolioRecommendation Error:", error);
-    throw error;
   }
 };
