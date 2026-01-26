@@ -83,17 +83,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     });
   }, [formData.fullNumber, cards, initialData]);
 
-  // Expiry Validation Logic
-  const isExpired = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    const inputYear = formData.expiryYear < 100 ? 2000 + formData.expiryYear : formData.expiryYear;
-    if (inputYear < currentYear) return true;
-    if (inputYear === currentYear && formData.expiryMonth < currentMonth) return true;
-    return false;
-  }, [formData.expiryMonth, formData.expiryYear]);
-
   useEffect(() => {
     if (hasBeenSelected) {
       setSuggestions([]);
@@ -106,7 +95,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       if (trimmedName.length >= 2) {
         setIsTyping(true);
         try {
-          // Decrypt key ONLY when needed
           const apiKey = await getDecryptedApiKey(masterKey);
           if (!apiKey) {
              setValidationMsg("AI Key missing. Check Settings.");
@@ -142,7 +130,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     setIsFetching(true);
     setValidationMsg('');
     try {
-      // Decrypt key ONLY when needed
       const apiKey = await getDecryptedApiKey(masterKey);
       if (!apiKey) {
         if (onOpenSettings) {
@@ -219,6 +206,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
     const cleanNum = getNormalizedNumber(formData.fullNumber);
     const last4 = cleanNum.length >= 4 ? cleanNum.slice(-4) : formData.last4;
+    // Normalize year to YYYY for storage
     const finalYear = formData.expiryYear < 100 ? 2000 + formData.expiryYear : formData.expiryYear;
 
     const benefitsWithIds: Benefit[] = fetchedBenefits.map((b, i) => ({
@@ -431,7 +419,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                     const val = Math.min(12, Math.max(1, Number(e.target.value)));
                     setFormData({ ...formData, expiryMonth: isNaN(val) ? 1 : val });
                   }}
-                  className={`w-full px-5 py-4 rounded-2xl border-2 ${isExpired ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/10' : 'border-slate-100 dark:border-slate-700'} dark:bg-slate-800 dark:text-white outline-none font-bold`}
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
                 />
               </div>
               <div>
@@ -448,7 +436,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                     const fallback = (new Date().getFullYear() + 3) % 100;
                     setFormData({ ...formData, expiryYear: isNaN(val) ? fallback : val });
                   }}
-                  className={`w-full px-5 py-4 rounded-2xl border-2 ${isExpired ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/10' : 'border-slate-100 dark:border-slate-700'} dark:bg-slate-800 dark:text-white outline-none font-bold`}
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
                 />
               </div>
             </div>

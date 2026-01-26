@@ -1,22 +1,23 @@
 
-import { Benefit, CardCategory } from "../types";
+import { Benefit, CardCategory, CreditCard, MultiAdvisorResult } from "../types";
 
 // Privacy Regex Patterns
 const PAN_REGEX = /\b(?:\d[ -]*?){13,19}\b/; // Matches 13-19 digit sequences (Card Numbers)
 const EXPIRY_REGEX = /\b(0[1-9]|1[0-2])[\/.-](20[2-9]\d|[2-9]\d)\b/; // Matches MM/YY or MM/YYYY
 const CVV_REGEX = /\b(cvv|cvc|cid|security\s?code)\W*\d{3,4}\b/i; // Matches CVV context
 
+// Internal helper to check if text contains sensitive data
+const isSensitive = (text: string): boolean => {
+  if (!text) return false;
+  if (PAN_REGEX.test(text)) return true;
+  if (EXPIRY_REGEX.test(text)) return true;
+  if (CVV_REGEX.test(text)) return true;
+  return false;
+};
+
 const validatePrivacy = (text: string) => {
-  if (!text) return;
-  
-  if (PAN_REGEX.test(text)) {
-    throw new Error("Sensitive card data cannot be sent to AI.");
-  }
-  if (EXPIRY_REGEX.test(text)) {
-    throw new Error("Sensitive card data cannot be sent to AI.");
-  }
-  if (CVV_REGEX.test(text)) {
-    throw new Error("Sensitive card data cannot be sent to AI.");
+  if (isSensitive(text)) {
+    throw new Error("Sensitive card data detected and blocked by privacy filter.");
   }
 };
 
@@ -197,5 +198,107 @@ export const analyzeCardImages = async (frontBase64: string, backBase64: string,
   } catch (error) {
     console.error("Gemini analyzeCardImages error:", error);
     return null;
+  }
+};
+
+export interface AdvisorResult {
+  recommendation: "Apply" | "Skip" | "Optional";
+  reasoning: string;
+  score: number;
+  newBenefits: string[];
+  alreadyCovered: string[];
+  similarBenefits: string[];
+}
+
+// Deprecated in favor of MultiAdvisor logic but kept for backward compatibility if needed
+export const analyzePortfolioRecommendation = async (newCardName: string, existingCards: CreditCard[], apiKey: string): Promise<AdvisorResult | null> => {
+  const result = await analyzeMultiPortfolioRecommendation([newCardName], existingCards, apiKey);
+  if (result && result.length > 0) {
+      const r = result[0];
+      // Map new format to old format for compatibility if any old components use this
+      return {
+          recommendation: r.decision as "Apply" | "Skip" | "Optional",
+          reasoning: r.reason,
+          score: r.decision === "APPLY" ? 90 : r.decision === "SKIP" ? 20 : 50,
+          newBenefits: r.newValue,
+          alreadyCovered: r.covered,
+          similarBenefits: []
+      };
+  }
+  return null;
+};
+
+export const analyzeMultiPortfolioRecommendation = async (targetCardNames: string[], existingCards: CreditCard[], apiKey: string): Promise<MultiAdvisorResult[] | null> => {
+  try {
+    // 1. Strict Input Validation on All Target Cards
+    targetCardNames.forEach(name => validatePrivacy(name));
+
+    // 2. PRIVACY FILTER & DATA SANITIZATION for Existing Portfolio
+    const safePortfolio = existingCards.reduce((acc, c) => {
+      let safeName = c.name;
+      if (isSensitive(safeName)) {
+         safeName = `Card ending in ${c.last4}`; 
+      }
+      const safeWaiver = isSensitive(c.waiverCondition) ? "" : c.waiverCondition;
+      const safeOffer = (c.bestOffer && !isSensitive(c.bestOffer)) ? c.bestOffer : "None";
+      const safeBenefitsList = c.benefits
+        .filter(b => !isSensitive(b.detail))
+        .map(b => `${b.category}: ${b.detail}`);
+
+      acc.push({
+        cardName: safeName,
+        network: c.cardType,
+        category: c.cardCategory,
+        annualFee: c.annualFee,
+        feeWaiverCondition: c.waiverTarget > 0 ? `Waived on spending ${c.waiverTarget}` : safeWaiver,
+        welcomeBenefits: safeOffer,
+        benefitsList: safeBenefitsList
+      });
+      return acc;
+    }, [] as any[]);
+
+    const prompt = {
+      parts: [{
+        text: `You are a credit card expert advisor.
+        
+        User already owns these cards with benefits: ${JSON.stringify(safePortfolio)}.
+        User is considering applying for these target cards: ${JSON.stringify(targetCardNames)}.
+
+        For EACH target card, return:
+        1. Benefits already covered by existing cards
+        2. New benefits offered
+        3. Final decision: APPLY / SKIP / OPTIONAL / MANUAL
+        4. Short reason (max 2 lines)
+
+        Rules:
+        - "MANUAL" if card name is unrecognized or generic (e.g. "Visa Card").
+        - "APPLY" if it adds unique high value (e.g. Lounge if none exist, Forex if none exist).
+        - "SKIP" if benefits are largely redundant.
+
+        Strictly return a JSON ARRAY of objects with this schema:
+        [
+          {
+            "card": "Target Card Name",
+            "decision": "APPLY" | "SKIP" | "OPTIONAL" | "MANUAL",
+            "reason": "String",
+            "covered": ["List of redundant benefits"],
+            "newValue": ["List of unique benefits"]
+          }
+        ]
+        
+        No markdown.`
+      }]
+    };
+
+    const responseText = await callGeminiProxy(prompt, apiKey);
+    const parsed = extractJSON(responseText || "");
+    
+    if (Array.isArray(parsed)) {
+      return parsed as MultiAdvisorResult[];
+    }
+    return [];
+  } catch (error) {
+    console.error("Gemini analyzeMultiPortfolioRecommendation Error:", error);
+    throw error;
   }
 };
