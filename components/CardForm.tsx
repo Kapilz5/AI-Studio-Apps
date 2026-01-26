@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits } from '../services/geminiService';
@@ -282,7 +281,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   category={formData.cardCategory}
                   placeholder={`e.g. HDFC Millennia`}
                   className="flex-grow"
-                  showValidationMessage={true}
+                  showValidationMessage={false}
                 />
                 
                 <button

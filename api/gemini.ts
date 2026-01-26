@@ -104,15 +104,23 @@ export default async function handler(req: any, res: any) {
   try {
     // REQUIRE Client-provided API Key from Headers
     const apiKeyHeader = req.headers['x-user-gemini-key'];
-    // Handle case where header might be an array (rare in this context but safe)
-    const apiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
+    const rawApiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
     
     // Strict enforcement: Do NOT fallback to process.env
     // Validate format: Must be present, string, non-empty
-    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+    if (!rawApiKey || typeof rawApiKey !== 'string' || rawApiKey.trim().length === 0) {
       // Explicit error message indicating user key is required
       res.status(400).json({ error: "User Gemini API Key required. Please configure it in the app Settings." });
       return;
+    }
+
+    // FIX: Decode API Key as it is encoded on client to prevent header char errors
+    let apiKey: string;
+    try {
+        apiKey = decodeURIComponent(rawApiKey).trim();
+    } catch (e) {
+        // Fallback if not encoded for some reason
+        apiKey = rawApiKey.trim();
     }
 
     // Parse the request body
@@ -134,7 +142,7 @@ export default async function handler(req: any, res: any) {
 
     // Initialize Gemini client server-side using the USER provided key
     // Key is used in memory for this request only
-    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+    const ai = new GoogleGenAI({ apiKey: apiKey });
 
     // Generate content using the recommended flash model
     const response = await ai.models.generateContent({

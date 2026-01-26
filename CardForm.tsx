@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
@@ -98,14 +97,8 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       if (trimmedName.length >= 2) {
         setIsTyping(true);
         try {
-          const apiKey = await getDecryptedApiKey(masterKey);
-          if (!apiKey) {
-             setValidationMsg("API Key missing. Check Settings.");
-             setIsTyping(false);
-             return;
-          }
-
-          const result = await getCardSuggestions(trimmedName, formData.cardCategory, apiKey);
+          // FIX: getCardSuggestions is local and does not need API key.
+          const result = await getCardSuggestions(trimmedName, formData.cardCategory);
           setSuggestions(result.suggestions);
           
           if (result.suggestions.length === 0) {
