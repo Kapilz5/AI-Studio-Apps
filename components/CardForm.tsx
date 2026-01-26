@@ -208,7 +208,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Expiry check removed from submit blocker as per request (not a hard stop)
     if (!formData.name || !formData.expiryMonth || formData.expiryYear === undefined || duplicateCard) return;
 
     const cleanNum = getNormalizedNumber(formData.fullNumber);

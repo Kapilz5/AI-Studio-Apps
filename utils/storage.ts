@@ -12,8 +12,6 @@ const BIOMETRICS_ENROLLED_KEY = 'card_strategist_v4_biometrics';
 const CLOUD_SYNC_KEY = 'card_strategist_v4_cloud_mock';
 const NOTIFICATION_PERIOD_KEY = 'card_strategist_v4_notif_period';
 const NOTIFIED_CARDS_EXPIRY_KEY = 'card_strategist_v4_notified_expiry';
-const CUSTOM_API_KEY_STORAGE = 'card_strategist_v4_custom_api_key';
-
 
 // --- Hashing ---
 export const hashString = async (str: string): Promise<string> => {
@@ -260,7 +258,7 @@ export const wipeEverything = () => {
   const keysToWipe = [
     STORAGE_KEY, MASTER_KEY_MPIN_ENC, MASTER_KEY_SECRET_ENC, MASTER_KEY_BIO_ENC,
     MPIN_HASH_KEY, SECRET_HASH_KEY, USER_SESSION_KEY, BIOMETRICS_ENROLLED_KEY,
-    CLOUD_SYNC_KEY, NOTIFICATION_PERIOD_KEY, NOTIFIED_CARDS_EXPIRY_KEY, CUSTOM_API_KEY_STORAGE
+    CLOUD_SYNC_KEY, NOTIFICATION_PERIOD_KEY, NOTIFIED_CARDS_EXPIRY_KEY
   ];
   keysToWipe.forEach(key => localStorage.removeItem(key));
   sessionStorage.clear();
@@ -300,29 +298,3 @@ export const removeNotifiedFlag = (cardId: string) => {
         saveNotifiedCards(notified);
     }
 }
-
-// --- API Key Fallback Storage (Obfuscated) ---
-export const saveAPIKey = (apiKey: string) => {
-  if (!apiKey || apiKey.trim() === '') {
-    localStorage.removeItem(CUSTOM_API_KEY_STORAGE);
-    return;
-  }
-  // Basic obfuscation to prevent casual shoulder surfing reading.
-  // We use btoa (Base64) as requested.
-  try {
-    const obfuscated = btoa(apiKey.trim());
-    localStorage.setItem(CUSTOM_API_KEY_STORAGE, obfuscated);
-  } catch (e) {
-    console.warn("Failed to save API key", e);
-  }
-};
-
-export const getAPIKey = (): string | null => {
-  const stored = localStorage.getItem(CUSTOM_API_KEY_STORAGE);
-  if (!stored) return null;
-  try {
-    return atob(stored);
-  } catch (e) {
-    return null;
-  }
-};

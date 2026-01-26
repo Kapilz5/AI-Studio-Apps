@@ -392,6 +392,15 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
               <Trash2 size={12} />
               <span>{UI_STRINGS.security.emergency_wipe_btn}</span>
             </button>
+            
+            {mode === 'setup' && (
+              <div className="mt-8 px-4">
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  <span className="font-bold text-slate-400 block mb-1">{UI_STRINGS.privacy.notice_title}</span>
+                  {UI_STRINGS.privacy.notice_text}
+                </p>
+              </div>
+            )}
         </div>
       </div>
     </div>

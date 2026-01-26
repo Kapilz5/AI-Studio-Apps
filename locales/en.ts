@@ -60,9 +60,9 @@ export const UI_STRINGS = {
     apply_benefits_btn: "Apply Benefits",
     ai_verify_failed: "AI could not verify this product. Enter benefits manually.",
     ai_verify_hint: "Identify your specific card for accurate AI benefits:",
-    ai_service_unavailable: "AI service unavailable. Please check your internet connection or API key.",
+    ai_service_unavailable: "AI service unavailable. Please check your internet connection.",
     ai_no_perks_found: "AI check completed. No official benefits found for this specific name.",
-    ai_setup_incomplete: "AI setup incomplete. Please ensure your API key is configured."
+    ai_setup_incomplete: "AI service setup incomplete."
   },
   security: {
     setup_title: "Security Setup",
@@ -145,5 +145,9 @@ export const UI_STRINGS = {
     bright_hint: "Too bright - Reduce glare",
     blurry_hint: "Blurry - Adjust focus",
     hold_steady: "Hold steady...",
+  },
+  privacy: {
+    notice_title: "Privacy Notice",
+    notice_text: "This app uses Google Gemini AI. User prompts may be sent to Google for processing. No personal data is stored by us."
   }
 };

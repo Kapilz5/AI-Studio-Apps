@@ -1,41 +1,27 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { Benefit, CardCategory } from "../types";
-import { getAPIKey } from "../utils/storage";
 
-const getAI = () => {
-  // 1. Priority: Manual Key from Settings (Stored securely/obfuscated)
-  let apiKey = getAPIKey();
+// Helper to call the server-side proxy
+const callGeminiProxy = async (promptContent: any) => {
+  try {
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt: promptContent }),
+    });
 
-  // 2. Fallback: Environment Variables (Vite/Next.js/React App)
-  if (!apiKey) {
-    if (typeof process !== 'undefined' && process.env) {
-      apiKey = process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || process.env.REACT_APP_API_KEY;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server Error: ${response.status}`);
     }
-    
-    if (!apiKey) {
-      try {
-        // @ts-ignore
-        if (typeof import.meta !== 'undefined' && import.meta.env) {
-          // @ts-ignore
-          apiKey = import.meta.env.VITE_API_KEY || import.meta.env.NEXT_PUBLIC_API_KEY || import.meta.env.API_KEY;
-        }
-      } catch (e) {
-        // Ignore
-      }
-    }
-    
-    if (!apiKey && typeof window !== 'undefined') {
-       // @ts-ignore
-       apiKey = window.ENV?.API_KEY || window.ENV?.NEXT_PUBLIC_API_KEY;
-    }
+
+    const data = await response.json();
+    return data.text;
+  } catch (error: any) {
+    console.error("Gemini Proxy Error:", error);
+    throw new Error(error.message || "Failed to communicate with AI service");
   }
-  
-  if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
-    console.error("Gemini Error: API Key is missing.");
-    throw new Error("API Key missing. Please add it in Settings.");
-  }
-  
-  return new GoogleGenAI({ apiKey });
 };
 
 // Robust JSON extractor that finds the first '{' and last '}'
@@ -54,6 +40,14 @@ const extractJSON = (text: string) => {
         const jsonCandidate = text.substring(firstOpen, lastClose + 1);
         return JSON.parse(jsonCandidate);
       }
+      
+      // 3. Try finding array boundaries
+      const firstArray = text.indexOf('[');
+      const lastArray = text.lastIndexOf(']');
+      if (firstArray !== -1 && lastArray !== -1) {
+        const jsonCandidate = text.substring(firstArray, lastArray + 1);
+        return JSON.parse(jsonCandidate);
+      }
     } catch (e2) {
       console.warn("JSON Extraction failed for text:", text.substring(0, 50) + "...");
     }
@@ -63,36 +57,27 @@ const extractJSON = (text: string) => {
 
 export const fetchCardBenefits = async (cardName: string, category: CardCategory): Promise<{ benefits: Omit<Benefit, 'id'>[], error?: string }> => {
   try {
-    const ai = getAI();
-    const modelName = "gemini-3-flash-preview"; 
-    
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: { 
-        parts: [{ 
-          text: `Extract official benefits for the Indian ${category} card: "${cardName}".
-          Return ONLY a JSON array of benefits.
-          Schema: { "category": string, "detail": string }.
-          Available Categories: "Shopping", "Food", "Entertainment", "Fuel", "Forex", "Travel", "Other".` 
-        }] 
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              category: { type: Type.STRING },
-              detail: { type: Type.STRING },
-            },
-            required: ["category", "detail"],
-          },
-        },
-      },
-    });
+    // We construct the prompt object to be passed to the 'contents' parameter on the server
+    const prompt = {
+      parts: [{ 
+        text: `You are a financial assistant. Extract official benefits for the Indian ${category} card: "${cardName}".
+        
+        Strictly follow this JSON format for the output. Do not include markdown formatting or explanations.
+        Return a JSON ARRAY of objects.
+        
+        Expected Schema:
+        [
+          { "category": "Shopping" | "Food" | "Entertainment" | "Fuel" | "Forex" | "Travel" | "Other", "detail": "string description" }
+        ]
 
-    const parsed = extractJSON(response.text || "");
+        Available Categories: "Shopping", "Food", "Entertainment", "Fuel", "Forex", "Travel", "Other".
+        If no info found, return empty array [].` 
+      }] 
+    };
+
+    const responseText = await callGeminiProxy(prompt);
+    const parsed = extractJSON(responseText || "");
+    
     if (Array.isArray(parsed)) {
       return { benefits: parsed };
     }
@@ -107,31 +92,17 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
   if (!userInput || userInput.trim().length < 2) return { suggestions: [] };
   
   try {
-    const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [{
-          text: `Suggest up to 5 popular Indian ${category} card names starting with or similar to: "${userInput}".
-          Format as JSON: { "suggestions": ["Name 1", "Name 2"] }.`
-        }]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            suggestions: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          },
-          required: ["suggestions"]
-        }
-      }
-    });
-    
-    const parsed = extractJSON(response.text || "");
+    const prompt = {
+      parts: [{
+        text: `Suggest up to 5 popular Indian ${category} card names starting with or similar to: "${userInput}".
+        Return ONLY valid JSON.
+        
+        Format: { "suggestions": ["Name 1", "Name 2"] }.`
+      }]
+    };
+
+    const responseText = await callGeminiProxy(prompt);
+    const parsed = extractJSON(responseText || "");
     const suggestions = parsed?.suggestions;
     
     if (Array.isArray(suggestions)) {
@@ -146,39 +117,33 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
 
 export const analyzeCardImages = async (frontBase64: string, backBase64: string): Promise<any> => {
   try {
-    const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [
-          { inlineData: { mimeType: "image/jpeg", data: frontBase64 } },
-          { inlineData: { mimeType: "image/jpeg", data: backBase64 } },
+    const prompt = {
+      parts: [
+        { inlineData: { mimeType: "image/jpeg", data: frontBase64 } },
+        { inlineData: { mimeType: "image/jpeg", data: backBase64 } },
+        {
+          text: `Identify the card from these images. Extract: name, category (Credit/Debit), network (Visa/Mastercard/Amex/RuPay), last 4 digits, expiry (MM/YYYY), CVV.
+          
+          Return ONLY valid JSON. No markdown.
+          
+          Format:
           {
-            text: `Identify the card from these images. Extract: name, category (Credit/Debit), network (Visa/Mastercard/Amex/RuPay), last 4 digits, expiry (MM/YYYY), CVV. Return as JSON.`,
-          }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            cardCategory: { type: Type.STRING },
-            cardType: { type: Type.STRING },
-            fullNumber: { type: Type.STRING },
-            cvv: { type: Type.STRING },
-            last4: { type: Type.STRING },
-            expiryMonth: { type: Type.INTEGER },
-            expiryYear: { type: Type.INTEGER },
-            suggestedAnnualFee: { type: Type.NUMBER },
-          },
-          required: ["name", "cardCategory", "last4", "expiryMonth", "expiryYear"],
-        },
-      },
-    });
+            "name": "Card Name",
+            "cardCategory": "Credit" or "Debit",
+            "cardType": "Visa" or "Mastercard" etc,
+            "fullNumber": "0000 0000 0000 0000",
+            "cvv": "123",
+            "last4": "1234",
+            "expiryMonth": 12,
+            "expiryYear": 2028,
+            "suggestedAnnualFee": 0
+          }`,
+        }
+      ]
+    };
 
-    return extractJSON(response.text || "") || {};
+    const responseText = await callGeminiProxy(prompt);
+    return extractJSON(responseText || "") || {};
   } catch (error) {
     console.error("Gemini analyzeCardImages error:", error);
     return null;
