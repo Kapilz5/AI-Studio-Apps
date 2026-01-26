@@ -155,11 +155,10 @@ export const UI_STRINGS = {
   },
   advisor: {
     title: "Card Advisor",
-    subtitle: "Analyze if new cards add value to your portfolio.",
-    input_label: "Add Target Cards",
-    input_placeholder: "e.g. Amex Platinum",
-    add_another: "Add another card...",
-    analyze_btn: "Analyze Batch",
+    subtitle: "Analyze if a new card adds value to your existing portfolio.",
+    input_label: "Card Name to Analyze",
+    input_placeholder: "e.g. Amex Platinum Travel",
+    analyze_btn: "Analyze Value",
     analyzing: "Comparing with your vault...",
     verdict_recommended: "APPLY",
     verdict_skip: "SKIP",
@@ -170,8 +169,6 @@ export const UI_STRINGS = {
     section_new: "New Benefits",
     section_covered: "Already Covered",
     section_similar: "Similar / Redundant",
-    analysis_failed: "Could not auto-analyze some cards. Try entering benefits manually.",
-    ai_verify_failed: "Card unrecognized. Please confirm name."
   },
   scanner: {
     analyzing_title: "AI Vision Engine",
