@@ -6,18 +6,17 @@ const PAN_REGEX = /\b(?:\d[ -]*?){13,19}\b/; // Matches 13-19 digit sequences (C
 const EXPIRY_REGEX = /\b(0[1-9]|1[0-2])[\/.-](20[2-9]\d|[2-9]\d)\b/; // Matches MM/YY or MM/YYYY
 const CVV_REGEX = /\b(cvv|cvc|cid|security\s?code)\W*\d{3,4}\b/i; // Matches CVV context
 
-// Internal helper to check if text contains sensitive data
-const isSensitive = (text: string): boolean => {
-  if (!text) return false;
-  if (PAN_REGEX.test(text)) return true;
-  if (EXPIRY_REGEX.test(text)) return true;
-  if (CVV_REGEX.test(text)) return true;
-  return false;
-};
-
 const validatePrivacy = (text: string) => {
-  if (isSensitive(text)) {
-    throw new Error("Sensitive card data detected and blocked by privacy filter.");
+  if (!text) return;
+  
+  if (PAN_REGEX.test(text)) {
+    throw new Error("Sensitive card data cannot be sent to AI.");
+  }
+  if (EXPIRY_REGEX.test(text)) {
+    throw new Error("Sensitive card data cannot be sent to AI.");
+  }
+  if (CVV_REGEX.test(text)) {
+    throw new Error("Sensitive card data cannot be sent to AI.");
   }
 };
 
@@ -212,47 +211,23 @@ export interface AdvisorResult {
 
 export const analyzePortfolioRecommendation = async (newCardName: string, existingCards: CreditCard[], apiKey: string): Promise<AdvisorResult | null> => {
   try {
-    // 1. Strict Input Validation on New Card Name
     validatePrivacy(newCardName);
 
-    // 2. PRIVACY FILTER & DATA SANITIZATION for Existing Portfolio
-    // We must ensure no user-entered sensitive data from the vault leaks into the prompt.
+    // PRIVACY FILTER: Extract ONLY non-sensitive benefit fields.
     // Explicitly exclude: fullNumber, cvv, expiryMonth, expiryYear.
-    const safePortfolio = existingCards.reduce((acc, c) => {
-      // Check if the card name itself is sensitive (e.g. user saved "4111 1111 1111" as name)
-      // If so, we redact it or skip it to avoid leaking PANs.
-      let safeName = c.name;
-      if (isSensitive(safeName)) {
-         safeName = `Card ending in ${c.last4}`; // Redacted fallback
-      }
+    const safePortfolio = existingCards.map(c => ({
+      cardName: c.name,
+      network: c.cardType,
+      category: c.cardCategory,
+      
+      // Financials (Non-Sensitive)
+      annualFee: c.annualFee,
+      feeWaiverCondition: c.waiverTarget > 0 ? `Waived on spending ${c.waiverTarget}` : c.waiverCondition,
 
-      // Check waiver condition text
-      const safeWaiver = isSensitive(c.waiverCondition) ? "" : c.waiverCondition;
-
-      // Check best offer text
-      const safeOffer = (c.bestOffer && !isSensitive(c.bestOffer)) ? c.bestOffer : "None";
-
-      // Filter benefits that might contain sensitive info
-      const safeBenefitsList = c.benefits
-        .filter(b => !isSensitive(b.detail))
-        .map(b => `${b.category}: ${b.detail}`);
-
-      acc.push({
-        cardName: safeName,
-        network: c.cardType,
-        category: c.cardCategory,
-        
-        // Financials (Non-Sensitive)
-        annualFee: c.annualFee,
-        feeWaiverCondition: c.waiverTarget > 0 ? `Waived on spending ${c.waiverTarget}` : safeWaiver,
-
-        // Perks & Benefits
-        welcomeBenefits: safeOffer,
-        benefitsList: safeBenefitsList
-      });
-
-      return acc;
-    }, [] as any[]);
+      // Perks & Benefits
+      welcomeBenefits: c.bestOffer || "None",
+      benefitsList: c.benefits.map(b => `${b.category}: ${b.detail}`)
+    }));
 
     const prompt = {
       parts: [{
