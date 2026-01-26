@@ -6,6 +6,24 @@ const PAN_REGEX = /\b(?:\d[ -]*?){13,19}\b/; // Matches 13-19 digit sequences (C
 const EXPIRY_REGEX = /\b(0[1-9]|1[0-2])[\/.-](20[2-9]\d|[2-9]\d)\b/; // Matches MM/YY or MM/YYYY
 const CVV_REGEX = /\b(cvv|cvc|cid|security\s?code)\W*\d{3,4}\b/i; // Matches CVV context
 
+// Local Catalog for Instant Autocomplete (No API Latency)
+const LOCAL_CARD_CATALOG = [
+  "HDFC Millennia Credit Card", "HDFC Regalia Gold", "HDFC Infinia Metal Edition", "HDFC MoneyBack+ Credit Card", "HDFC Freedom Credit Card", "HDFC Tata Neu Infinity", "HDFC Tata Neu Plus", "HDFC Swiggy Credit Card", "HDFC Diners Club Black",
+  "SBI Cashback Credit Card", "SBI SimplyClick Credit Card", "SBI SimplySave Credit Card", "SBI Prime Credit Card", "SBI Elite Credit Card", "SBI Pulse Credit Card", "BPCL SBI Card Octane",
+  "ICICI Amazon Pay Credit Card", "ICICI Coral Credit Card", "ICICI Rubyx Credit Card", "ICICI Sapphiro Credit Card", "ICICI Emeralde Credit Card", "ICICI Platinum Chip Credit Card", "ICICI MakeMyTrip Signature",
+  "Axis Flipkart Credit Card", "Axis Ace Credit Card", "Axis Magnus Credit Card", "Axis Atlas Credit Card", "Axis Select Credit Card", "Axis Neo Credit Card", "Axis My Zone Credit Card", "Axis Vistara Infinite", "Axis Airtel Credit Card",
+  "American Express Platinum Travel", "American Express Membership Rewards", "American Express Gold Card", "American Express SmartEarn", "American Express Platinum Reserve",
+  "OneCard Metal Credit Card", "Scapia Federal Bank Credit Card",
+  "IDFC First Millennia", "IDFC First Classic", "IDFC First Select", "IDFC First Wealth", "IDFC First WOW",
+  "Standard Chartered Ultimate", "Standard Chartered Smart", "Standard Chartered DigiSmart",
+  "Kotak Mahindra Mojo", "Kotak Mahindra Urbane", "Kotak League Platinum",
+  "RBL Bank ShopRite", "RBL Bank World Safari", "RBL Play Credit Card",
+  "IndusInd Legend", "IndusInd Platinum Aura Edge", "IndusInd EazyDiner",
+  "AU Small Finance Bank Zenith", "AU Small Finance Bank Lit",
+  "Yes Bank Marquee", "Yes Bank ACE",
+  "HSBC Visa Platinum", "HSBC Cashback Credit Card"
+];
+
 // Internal helper to check if text contains sensitive data
 const isSensitive = (text: string): boolean => {
   if (!text) return false;
@@ -39,9 +57,12 @@ const callGeminiProxy = async (promptContent: any, apiKey: string) => {
   }
 
   try {
+    // FIX: Encode API Key to ensure it only contains ASCII characters safe for HTTP headers.
+    const safeKey = encodeURIComponent(apiKey.trim());
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'x-user-gemini-key': apiKey // Pass the decrypted key securely in headers
+      'x-user-gemini-key': safeKey // Pass the encoded key securely in headers
     };
 
     const response = await fetch('/api/gemini', {
@@ -134,33 +155,22 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
   }
 };
 
-export const getCardSuggestions = async (userInput: string, category: CardCategory, apiKey: string): Promise<{ suggestions: string[], error?: string }> => {
+export const getCardSuggestions = async (userInput: string, category?: string): Promise<{ suggestions: string[], error?: string }> => {
   if (!userInput || userInput.trim().length < 2) return { suggestions: [] };
   
   try {
-    // Client-side Privacy Check
-    validatePrivacy(userInput);
-
-    const prompt = {
-      parts: [{
-        text: `Suggest up to 5 popular Indian ${category} card names starting with or similar to: "${userInput}".
-        Return ONLY valid JSON.
-        
-        Format: { "suggestions": ["Name 1", "Name 2"] }.`
-      }]
-    };
-
-    const responseText = await callGeminiProxy(prompt, apiKey);
-    const parsed = extractJSON(responseText || "");
-    const suggestions = parsed?.suggestions;
+    const query = userInput.toLowerCase().trim();
     
-    if (Array.isArray(suggestions)) {
-      return { suggestions };
-    }
-    return { suggestions: [] };
+    // Local Filter: Search in static catalog
+    // We ignore category to allow broad search (fallback to ALL)
+    const matches = LOCAL_CARD_CATALOG.filter(card => 
+      card.toLowerCase().includes(query)
+    ).slice(0, 6); // Limit to top 6 suggestions
+
+    return { suggestions: matches };
   } catch (error: any) {
-    console.error("Gemini getCardSuggestions Error:", error);
-    return { suggestions: [], error: error.message || "AI Service Error" };
+    console.error("Local getCardSuggestions Error:", error);
+    return { suggestions: [] };
   }
 };
 

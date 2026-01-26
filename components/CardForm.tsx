@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
@@ -72,7 +73,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     }
   }, [initialData]);
 
-  // QA FIX: Better normalized duplication detection
   const duplicateCard = useMemo(() => {
     const currentNum = getNormalizedNumber(formData.fullNumber);
     if (!currentNum || currentNum.length < 4) return null;
@@ -95,14 +95,8 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       if (trimmedName.length >= 2) {
         setIsTyping(true);
         try {
-          const apiKey = await getDecryptedApiKey(masterKey);
-          if (!apiKey) {
-             setValidationMsg("AI Key missing. Check Settings.");
-             setIsTyping(false);
-             return;
-          }
-
-          const result = await getCardSuggestions(trimmedName, formData.cardCategory, apiKey);
+          // Local lookup now - no API key needed
+          const result = await getCardSuggestions(trimmedName, formData.cardCategory);
           setSuggestions(result.suggestions);
           
           if (result.suggestions.length === 0) {
@@ -118,10 +112,10 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         setSuggestions([]);
         setValidationMsg('');
       }
-    }, 2000); 
+    }, 200); // Faster debounce since it's local
     
     return () => clearTimeout(timer);
-  }, [formData.name, formData.cardCategory, hasBeenSelected, masterKey]);
+  }, [formData.name, formData.cardCategory, hasBeenSelected]);
 
   const handleFetchBenefits = useCallback(async (nameOverride?: string) => {
     const cardName = (nameOverride || formData.name).trim();

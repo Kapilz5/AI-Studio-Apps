@@ -35,21 +35,18 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
 
         setIsTyping(true);
         try {
-            const apiKey = await getDecryptedApiKey(masterKey);
-            if (apiKey) {
-                // Default to 'Credit' for advisor context
-                const res = await getCardSuggestions(inputName, 'Credit', apiKey);
-                setSuggestions(res.suggestions);
-            }
+            // Local lookup now - no API key needed
+            const res = await getCardSuggestions(inputName, 'Credit');
+            setSuggestions(res.suggestions);
         } catch (e) {
             console.debug("Suggestion fetch failed", e);
         } finally {
             setIsTyping(false);
         }
-    }, 1000);
+    }, 200); // Faster debounce since it's local
 
     return () => clearTimeout(timer);
-  }, [inputName, hasBeenSelected, masterKey]);
+  }, [inputName, hasBeenSelected]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       setInputName(e.target.value);
@@ -185,7 +182,7 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
                   <div className="absolute top-full left-0 right-16 mt-3 p-4 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-3xl shadow-2xl animate-in slide-in-from-top-2 z-50">
                     <div className="flex items-center gap-2 mb-3 px-1">
                       <Sparkles size={12} className="text-blue-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">AI Suggestions</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Suggestions</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {suggestions.map((s, idx) => (
