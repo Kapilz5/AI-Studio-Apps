@@ -281,7 +281,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   category={formData.cardCategory}
                   placeholder={`e.g. HDFC Millennia`}
                   className="flex-grow"
-                  showValidationMessage={false}
+                  showValidationMessage={true}
                 />
                 
                 <button
