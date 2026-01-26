@@ -69,6 +69,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
             return;
           }
 
+          // FIX: Cast category to CardCategory to avoid type mismatch error
           const result = await getCardSuggestions(trimmedName, category as CardCategory, apiKey);
           setSuggestions(result.suggestions);
           
@@ -87,7 +88,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
         setSuggestions([]);
         setValidationMsg('');
       }
-    }, 800); // Reduced to 800ms for more immediate feedback while still acting as a debounce
+    }, 800); 
     
     return () => clearTimeout(timer);
   }, [value, category, hasBeenSelected, masterKey, showValidationMessage]);
@@ -125,7 +126,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
         {rightElement}
 
         {shouldShowDropdown && (
-            <div className={`absolute top-full left-0 right-0 mt-3 z-30 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 shadow-xl ${validationMsg.includes('correct') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
+            <div className={`absolute top-full left-0 right-0 mt-3 z-[60] rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 shadow-xl ${validationMsg.includes('correct') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
                 {showValidationMessage && validationMsg && (
                     <div className={`flex items-start gap-3 text-[10px] font-black uppercase tracking-widest mb-3 ${validationMsg.includes('correct') ? 'text-rose-600' : 'text-slate-400'}`}>
                         {validationMsg.includes('correct') ? <AlertCircle size={14} /> : <Search size={14} />}
