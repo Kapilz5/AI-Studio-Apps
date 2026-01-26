@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2 } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
@@ -466,8 +465,8 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {isFormOpen && <CardForm onSave={handleSaveCard} onCancel={closeForm} initialData={editingCard} cards={cards} />}
-      {isSettingsOpen && <SettingsModal cards={cards} onCardsSynced={(c) => setCards(c)} onClose={() => setIsSettingsOpen(false)} masterKey={masterKey!} onNotifPeriodChange={setNotificationPeriodState} />}
+      {isFormOpen && masterKey && <CardForm onSave={handleSaveCard} onCancel={closeForm} initialData={editingCard} cards={cards} masterKey={masterKey} onOpenSettings={() => setIsSettingsOpen(true)} />}
+      {isSettingsOpen && masterKey && <SettingsModal cards={cards} onCardsSynced={(c) => setCards(c)} onClose={() => setIsSettingsOpen(false)} masterKey={masterKey} onNotifPeriodChange={setNotificationPeriodState} />}
     </div>
   );
 };

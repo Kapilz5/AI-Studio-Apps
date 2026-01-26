@@ -6,6 +6,7 @@ export const UI_STRINGS = {
     add_card: "Add Card",
     cancel: "Cancel",
     save: "Save",
+    save_success: "Saved!",
     delete: "Delete",
     edit: "Edit",
     back: "Back",
@@ -135,6 +136,10 @@ export const UI_STRINGS = {
     health_storage: "Storage Hygiene",
     health_ai: "AI Privacy Filter",
     health_leaks: "Found plaintext data: ",
+    ai_config_title: "AI Configuration",
+    api_key_label: "Gemini API Key",
+    api_key_placeholder: "Paste your API key here",
+    api_key_help: "Stored locally. Required for AI features.",
   },
   benefits_explorer: {
     title: "Benefit Explorer",

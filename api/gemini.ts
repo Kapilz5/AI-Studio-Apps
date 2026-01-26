@@ -49,7 +49,7 @@ const containsSensitiveData = (obj: any): boolean => {
 export default async function handler(req: any, res: any) {
   // CORS configuration
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-user-gemini-key');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
 
   // Handle preflight requests
@@ -101,16 +101,20 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  // Securely access API key from environment
-  // Strict compliance: Must use process.env.API_KEY
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.error("Server Error: API_KEY environment variable is missing.");
-    res.status(500).json({ error: 'Server configuration error' });
-    return;
-  }
-
   try {
+    // REQUIRE Client-provided API Key from Headers
+    const apiKeyHeader = req.headers['x-user-gemini-key'];
+    // Handle case where header might be an array (rare in this context but safe)
+    const apiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
+    
+    // Strict enforcement: Do NOT fallback to process.env
+    // Validate format: Must be present, string, non-empty
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+      // Explicit error message indicating user key is required
+      res.status(400).json({ error: "User Gemini API Key required. Please configure it in the app Settings." });
+      return;
+    }
+
     // Parse the request body
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const { prompt } = body;
@@ -128,8 +132,9 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    // Initialize Gemini client server-side
-    const ai = new GoogleGenAI({ apiKey });
+    // Initialize Gemini client server-side using the USER provided key
+    // Key is used in memory for this request only
+    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
 
     // Generate content using the recommended flash model
     const response = await ai.models.generateContent({
@@ -143,7 +148,16 @@ export default async function handler(req: any, res: any) {
     });
 
   } catch (error: any) {
-    console.error("Gemini API Proxy Error:", error);
+    // Do not log the full error object if it potentially contains the key
+    console.error("Gemini API Proxy Error:", error.message || "Unknown error");
+    
+    const message = error.message || "";
+    // Pass through specific error if key is invalid
+    if (message.includes("API key")) {
+        res.status(400).json({ error: "Invalid API Key provided." });
+        return;
+    }
+
     res.status(500).json({ 
       error: 'Failed to process AI request', 
       details: error.message 

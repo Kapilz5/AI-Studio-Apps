@@ -15,6 +15,8 @@ const KEY_SECRET_HASH = 'secret_hash';
 const KEY_BIO_ENABLED = 'bio_enabled';
 const KEY_NOTIF_PERIOD = 'notif_period';
 const KEY_NOTIFIED_CARDS = 'notified_cards';
+// Changed to explicit encrypted key to denote it contains ciphertext
+const KEY_USER_API_KEY_ENC = 'user_api_key_enc';
 
 // Crypto Constants
 const PBKDF2_ITERATIONS = 600000; // High iteration count for PWA fallback
@@ -429,6 +431,63 @@ export const getMPINHash = async (): Promise<string | undefined> => {
   return await idb.get<string>(KEY_MPIN_HASH);
 };
 
+// --- API Key Secure Storage (Device-Bound Encryption) ---
+
+export const getGeminiApiKeyEncrypted = async (): Promise<boolean> => {
+  const data = await idb.get(KEY_USER_API_KEY_ENC);
+  return !!data;
+};
+
+export const saveEncryptedApiKey = async (apiKey: string, masterKey: Uint8Array) => {
+  if (!apiKey) {
+    await idb.delete(KEY_USER_API_KEY_ENC);
+    return;
+  }
+
+  const iv = window.crypto.getRandomValues(new Uint8Array(IV_LEN));
+  const cryptoKey = await window.crypto.subtle.importKey("raw", masterKey, "AES-GCM", false, ["encrypt"]);
+  
+  const encoder = new TextEncoder();
+  const encodedData = encoder.encode(apiKey);
+  
+  const encrypted = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv }, 
+    cryptoKey, 
+    encodedData
+  );
+
+  // Store: [IV (12)] [CIPHERTEXT]
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(encrypted), iv.length);
+
+  await idb.put(KEY_USER_API_KEY_ENC, combined);
+};
+
+export const getDecryptedApiKey = async (masterKey: Uint8Array): Promise<string | undefined> => {
+  const combined = await idb.get<Uint8Array>(KEY_USER_API_KEY_ENC);
+  if (!combined) return undefined;
+
+  try {
+    const iv = combined.slice(0, IV_LEN);
+    const ciphertext = combined.slice(IV_LEN);
+
+    const cryptoKey = await window.crypto.subtle.importKey("raw", masterKey, "AES-GCM", false, ["decrypt"]);
+    const decrypted = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv }, 
+      cryptoKey, 
+      ciphertext
+    );
+
+    const decoder = new TextDecoder();
+    return decoder.decode(decrypted);
+  } catch (e) {
+    console.error("API Key Decryption failed:", e);
+    return undefined;
+  }
+};
+
+
 export const wipeEverything = async () => {
   // Cryptographic shredding: Overwrite sensitive key slots with random noise
   const noise = window.crypto.getRandomValues(new Uint8Array(256));
@@ -443,6 +502,7 @@ export const wipeEverything = async () => {
     await idb.put(KEY_MASTER_ENC_BIO, noise);
     await idb.put(KEY_DATA_ENC, noise);
     await idb.put(KEY_MPIN_HASH, noise);
+    await idb.put(KEY_USER_API_KEY_ENC, noise);
   } catch (e) {
     console.warn("Secure overwrite interrupted, proceeding to clear.", e);
   }
@@ -574,7 +634,7 @@ export const runStorageIntegrityCheck = async () => {
     }
     
     // 2. Scan LocalStorage for potential plaintext leaks (Common mistake keys)
-    const riskyKeys = ['cards', 'credit_cards', 'wallet_data', 'my_cards_backup', 'vault'];
+    const riskyKeys = ['cards', 'credit_cards', 'wallet_data', 'my_cards_backup', 'vault', 'user_api_key'];
     const leaks = riskyKeys.filter(k => localStorage.getItem(k) !== null);
     
     return {

@@ -32,18 +32,29 @@ export const checkPrivacyFilterIntegrity = (): boolean => {
 };
 
 // Helper to call the server-side proxy
-const callGeminiProxy = async (promptContent: any) => {
+const callGeminiProxy = async (promptContent: any, apiKey: string) => {
+  if (!apiKey) {
+      throw new Error("Gemini API Key missing. Please configure it in Settings.");
+  }
+
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-user-gemini-key': apiKey // Pass the decrypted key securely in headers
+    };
+
     const response = await fetch('/api/gemini', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({ prompt: promptContent }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      // Provide helpful error if key is missing/invalid
+      if (response.status === 400 && errorData.error && errorData.error.includes("User Gemini API key required")) {
+         throw new Error("Gemini API Key required by server.");
+      }
       throw new Error(errorData.error || `Server Error: ${response.status}`);
     }
 
@@ -86,7 +97,7 @@ const extractJSON = (text: string) => {
   }
 };
 
-export const fetchCardBenefits = async (cardName: string, category: CardCategory): Promise<{ benefits: Omit<Benefit, 'id'>[], error?: string }> => {
+export const fetchCardBenefits = async (cardName: string, category: CardCategory, apiKey: string): Promise<{ benefits: Omit<Benefit, 'id'>[], error?: string }> => {
   try {
     // Client-side Privacy Check
     validatePrivacy(cardName);
@@ -109,7 +120,7 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
       }] 
     };
 
-    const responseText = await callGeminiProxy(prompt);
+    const responseText = await callGeminiProxy(prompt, apiKey);
     const parsed = extractJSON(responseText || "");
     
     if (Array.isArray(parsed)) {
@@ -122,7 +133,7 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
   }
 };
 
-export const getCardSuggestions = async (userInput: string, category: CardCategory): Promise<{ suggestions: string[], error?: string }> => {
+export const getCardSuggestions = async (userInput: string, category: CardCategory, apiKey: string): Promise<{ suggestions: string[], error?: string }> => {
   if (!userInput || userInput.trim().length < 2) return { suggestions: [] };
   
   try {
@@ -138,7 +149,7 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
       }]
     };
 
-    const responseText = await callGeminiProxy(prompt);
+    const responseText = await callGeminiProxy(prompt, apiKey);
     const parsed = extractJSON(responseText || "");
     const suggestions = parsed?.suggestions;
     
@@ -152,7 +163,7 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
   }
 };
 
-export const analyzeCardImages = async (frontBase64: string, backBase64: string): Promise<any> => {
+export const analyzeCardImages = async (frontBase64: string, backBase64: string, apiKey: string): Promise<any> => {
   try {
     // Note: We do not regex check base64 strings as they are binary data. 
     // The server will enforce privacy on any text parts accompanying the request.
@@ -181,7 +192,7 @@ export const analyzeCardImages = async (frontBase64: string, backBase64: string)
       ]
     };
 
-    const responseText = await callGeminiProxy(prompt);
+    const responseText = await callGeminiProxy(prompt, apiKey);
     return extractJSON(responseText || "") || {};
   } catch (error) {
     console.error("Gemini analyzeCardImages error:", error);

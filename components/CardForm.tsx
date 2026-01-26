@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
-import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search, CalendarX, CreditCard as CardIcon } from 'lucide-react';
+import { getDecryptedApiKey } from '../utils/storage';
+import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search } from 'lucide-react';
 import CardScanner from './CardScanner';
 
 interface CardFormProps {
@@ -9,12 +10,14 @@ interface CardFormProps {
   onCancel: () => void;
   initialData?: CreditCard;
   cards: CreditCard[];
+  masterKey: Uint8Array;
+  onOpenSettings?: () => void;
 }
 
 // Normalized duplication check helper
 const getNormalizedNumber = (num: string) => num.replace(/[\s-]/g, '');
 
-const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, cards = [] }) => {
+const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, cards = [], masterKey, onOpenSettings }) => {
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingBenefits, setPendingBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
@@ -32,7 +35,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     cvv: '',
     issueDate: new Date().toISOString().split('T')[0],
     expiryMonth: new Date().getMonth() + 1,
-    // Default to 3 years from now, formatted as 2 digits (YY)
     expiryYear: (new Date().getFullYear() + 3) % 100,
     annualFee: 0,
     creditLimit: 0,
@@ -57,7 +59,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         cvv: initialData.cvv || '',
         issueDate: initialData.issueDate,
         expiryMonth: initialData.expiryMonth,
-        // Show YY in the form by modding 100
         expiryYear: initialData.expiryYear % 100,
         annualFee: initialData.annualFee,
         creditLimit: initialData.creditLimit,
@@ -71,6 +72,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     }
   }, [initialData]);
 
+  // QA FIX: Better normalized duplication detection
   const duplicateCard = useMemo(() => {
     const currentNum = getNormalizedNumber(formData.fullNumber);
     if (!currentNum || currentNum.length < 4) return null;
@@ -81,32 +83,16 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     });
   }, [formData.fullNumber, cards, initialData]);
 
-  // Expiry Validation Logic - Handles both YY and YYYY internal states robustly
+  // Expiry Validation Logic
   const isExpired = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
-    
-    // Normalize to YYYY for validation (Assumes 2000s)
     const inputYear = formData.expiryYear < 100 ? 2000 + formData.expiryYear : formData.expiryYear;
-    
-    // Check if year is past, or if year is current but month is past
     if (inputYear < currentYear) return true;
     if (inputYear === currentYear && formData.expiryMonth < currentMonth) return true;
-    
     return false;
   }, [formData.expiryMonth, formData.expiryYear]);
-
-  // Handle Input Changes - Detection Removed
-  const handleNumberChange = (val: string) => {
-    const cleanVal = val.replace(/\D/g, '');
-    const formatted = cleanVal.match(/.{1,4}/g)?.join(' ') || cleanVal;
-
-    setFormData(prev => ({ 
-        ...prev, 
-        fullNumber: formatted.slice(0, 19)
-    }));
-  };
 
   useEffect(() => {
     if (hasBeenSelected) {
@@ -120,7 +106,15 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       if (trimmedName.length >= 2) {
         setIsTyping(true);
         try {
-          const result = await getCardSuggestions(trimmedName, formData.cardCategory);
+          // Decrypt key ONLY when needed
+          const apiKey = await getDecryptedApiKey(masterKey);
+          if (!apiKey) {
+             setValidationMsg("AI Key missing. Check Settings.");
+             setIsTyping(false);
+             return;
+          }
+
+          const result = await getCardSuggestions(trimmedName, formData.cardCategory, apiKey);
           setSuggestions(result.suggestions);
           
           if (result.suggestions.length === 0) {
@@ -139,7 +133,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     }, 2000); 
     
     return () => clearTimeout(timer);
-  }, [formData.name, formData.cardCategory, hasBeenSelected]);
+  }, [formData.name, formData.cardCategory, hasBeenSelected, masterKey]);
 
   const handleFetchBenefits = useCallback(async (nameOverride?: string) => {
     const cardName = (nameOverride || formData.name).trim();
@@ -148,7 +142,21 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     setIsFetching(true);
     setValidationMsg('');
     try {
-      const result = await fetchCardBenefits(cardName, formData.cardCategory);
+      // Decrypt key ONLY when needed
+      const apiKey = await getDecryptedApiKey(masterKey);
+      if (!apiKey) {
+        if (onOpenSettings) {
+             if (window.confirm("Gemini API Key is missing. Configure it in Settings to use AI features?")) {
+                 onOpenSettings();
+             }
+        } else {
+             alert("Please set your Gemini API Key in Settings to use AI features.");
+        }
+        setIsFetching(false);
+        return;
+      }
+
+      const result = await fetchCardBenefits(cardName, formData.cardCategory, apiKey);
       if (result.benefits.length > 0) {
         setPendingBenefits(result.benefits);
         setShowConfirmation(true);
@@ -163,7 +171,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     } finally {
       setIsFetching(false);
     }
-  }, [formData.name, formData.cardCategory]);
+  }, [formData.name, formData.cardCategory, masterKey, onOpenSettings]);
 
   const confirmBenefits = () => {
     setFetchedBenefits(pendingBenefits);
@@ -179,7 +187,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   };
 
   const handleScanComplete = useCallback((scannedData: any) => {
-    // Normalize scanned year to YY (e.g., 2025 -> 25)
     const scannedYear = scannedData.expiryYear ? scannedData.expiryYear % 100 : undefined;
 
     setFormData(prev => ({
@@ -212,8 +219,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
     const cleanNum = getNormalizedNumber(formData.fullNumber);
     const last4 = cleanNum.length >= 4 ? cleanNum.slice(-4) : formData.last4;
-
-    // Convert YY to YYYY for storage (Assumes 2000s)
     const finalYear = formData.expiryYear < 100 ? 2000 + formData.expiryYear : formData.expiryYear;
 
     const benefitsWithIds: Benefit[] = fetchedBenefits.map((b, i) => ({
@@ -269,7 +274,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         </div>
       )}
 
-      {showScanner && <CardScanner onScanComplete={handleScanComplete} onCancel={handleScannerCancel} />}
+      {showScanner && <CardScanner onScanComplete={handleScanComplete} onCancel={handleScannerCancel} masterKey={masterKey} onOpenSettings={onOpenSettings} />}
 
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border border-slate-100 dark:border-slate-800 flex flex-col">
         <div className="p-8 pb-0">
@@ -298,7 +303,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 pt-0 space-y-8 text-left">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="md:col-span-2">
               <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Product Tier</label>
               <div className="grid grid-cols-2 gap-4">
@@ -391,7 +396,14 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   placeholder="0000 0000 0000 0000"
                   required
                   value={formData.fullNumber}
-                  onChange={e => handleNumberChange(e.target.value)}
+                  onChange={e => {
+                      const cleanVal = e.target.value.replace(/\D/g, '');
+                      const formatted = cleanVal.match(/.{1,4}/g)?.join(' ') || cleanVal;
+                      setFormData(prev => ({ 
+                          ...prev, 
+                          fullNumber: formatted.slice(0, 19)
+                      }));
+                  }}
                   className={`w-full pl-14 pr-5 py-4 rounded-2xl border-2 ${duplicateCard ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono text-xl tracking-[0.1em]`}
                 />
               </div>
@@ -433,7 +445,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   value={formData.expiryYear}
                   onChange={e => {
                     const val = Number(e.target.value);
-                    // Default to current relative year (e.g. 25 or 28)
                     const fallback = (new Date().getFullYear() + 3) % 100;
                     setFormData({ ...formData, expiryYear: isNaN(val) ? fallback : val });
                   }}
@@ -441,12 +452,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                 />
               </div>
             </div>
-            {isExpired && (
-                <div className="md:col-span-2 -mt-4 flex items-center gap-2 text-amber-600 dark:text-amber-500 animate-in fade-in">
-                    <CalendarX size={14} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Card has expired (Allowed for archive)</span>
-                </div>
-            )}
 
             <div>
               <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Security CVV</label>
@@ -467,7 +472,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
             <div className="md:col-span-2">
               <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Network Brand</label>
               <div className="relative">
-                  <CardIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                   <input
                     type="text"
                     placeholder="Visa, RuPay, etc."

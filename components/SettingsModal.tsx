@@ -1,5 +1,5 @@
 
-import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, BellRing, BellPlus, BellOff, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock } from 'lucide-react';
+import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, BellRing, BellPlus, BellOff, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { CreditCard } from '../types';
 import { 
@@ -12,7 +12,9 @@ import {
   exportEncryptedBackup,
   importEncryptedBackup,
   saveCards,
-  runStorageIntegrityCheck
+  runStorageIntegrityCheck,
+  getDecryptedApiKey,
+  saveEncryptedApiKey
 } from '../utils/storage';
 import { checkPrivacyFilterIntegrity } from '../services/geminiService';
 import SecurityAuth from './SecurityAuth';
@@ -35,6 +37,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [showMpinReset, setShowMpinReset] = useState(false);
   const [showPrivacyScreen, setShowPrivacyScreen] = useState(false);
+
+  // API Key State
+  const [apiKey, setApiKey] = useState('');
+  const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
+  const [apiKeySaved, setApiKeySaved] = useState(false);
 
   // Backup States
   const [backupMode, setBackupMode] = useState<'export' | 'import' | null>(null);
@@ -66,6 +73,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
         const np = await getNotificationPeriod();
         setNotifPeriod(np);
 
+        // Decrypt the stored API key in memory to show it (masked)
+        const storedKey = await getDecryptedApiKey(masterKey);
+        if (storedKey) {
+            setApiKey(storedKey);
+            setApiKeySaved(true);
+        }
+
         // Run Security Self-Check
         const storageCheck = await runStorageIntegrityCheck();
         const aiCheck = checkPrivacyFilterIntegrity();
@@ -83,7 +97,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
     if ('Notification' in window) {
       setNotifPermission(Notification.permission);
     }
-  }, []);
+  }, [masterKey]);
 
   const handleRequestNotifPermission = async () => {
     const permission = await requestPermission();
@@ -94,6 +108,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
     setNotifPeriod(period);
     setNotificationPeriod(period);
     onNotifPeriodChange?.(period);
+  };
+
+  const handleSaveApiKey = async () => {
+    // Encrypt the key using the Master Key before saving
+    await saveEncryptedApiKey(apiKey, masterKey);
+    setApiKeySaved(true);
+    alert("API Key encrypted and saved to local device vault.");
   };
 
   const toggleBiometrics = async () => {
@@ -256,6 +277,46 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
 
         <div className="p-8 space-y-8 text-left">
           
+          {/* AI Configuration */}
+          <div className="space-y-4">
+             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{UI_STRINGS.settings.ai_config_title}</label>
+             <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-[2rem] space-y-4">
+                <div className="flex items-center gap-4 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center"><Key size={20} /></div>
+                    <div>
+                        <p className="text-sm font-black text-slate-900 dark:text-white">{UI_STRINGS.settings.api_key_label}</p>
+                        <p className="text-[10px] text-slate-500 font-bold">{UI_STRINGS.settings.api_key_help}</p>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] font-black text-blue-500 hover:underline mt-1">
+                            <span>Get API Key</span>
+                            <ExternalLink size={10} />
+                        </a>
+                    </div>
+                </div>
+                <div className="relative">
+                    <input 
+                        type={isApiKeyVisible ? "text" : "password"}
+                        value={apiKey}
+                        onChange={(e) => { setApiKey(e.target.value); setApiKeySaved(false); }}
+                        placeholder={UI_STRINGS.settings.api_key_placeholder}
+                        className="w-full pl-5 pr-12 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-600 focus:border-blue-500 outline-none font-mono text-sm dark:text-white transition-all"
+                    />
+                    <button 
+                        onClick={() => setIsApiKeyVisible(!isApiKeyVisible)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-blue-500 transition-colors"
+                    >
+                        {isApiKeyVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                </div>
+                <button 
+                    onClick={handleSaveApiKey}
+                    disabled={apiKeySaved || !apiKey}
+                    className={`w-full py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${apiKeySaved ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20'}`}
+                >
+                    {apiKeySaved ? UI_STRINGS.common.save_success : UI_STRINGS.common.save}
+                </button>
+             </div>
+          </div>
+
           {/* System Health Check */}
           <div className="space-y-4">
              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{UI_STRINGS.settings.health_title}</label>
@@ -304,7 +365,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                 )}
              </div>
           </div>
-
+          
+          {/* ... Rest of existing settings code (notifications, backup, device security) ... */}
           {/* Notification Settings */}
           <div className="space-y-4">
             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Smart Alerts</label>

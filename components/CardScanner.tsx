@@ -1,11 +1,15 @@
+
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Camera, X, Check, RefreshCw, Loader2, Info, ArrowRight, Scan, ShieldCheck, Database, BrainCircuit, AlertTriangle, Sun, Zap, CheckCircle2, RotateCcw, Sparkles } from 'lucide-react';
 import { analyzeCardImages } from '../services/geminiService';
+import { getDecryptedApiKey } from '../utils/storage';
 import { UI_STRINGS } from '../locales/en';
 
 interface CardScannerProps {
   onScanComplete: (data: any) => void;
   onCancel: () => void;
+  masterKey: Uint8Array;
+  onOpenSettings?: () => void;
 }
 
 const ANALYSIS_PHASES = [
@@ -22,7 +26,7 @@ interface QualityScore {
   hint?: string;
 }
 
-const CardScanner: React.FC<CardScannerProps> = ({ onScanComplete, onCancel }) => {
+const CardScanner: React.FC<CardScannerProps> = ({ onScanComplete, onCancel, masterKey, onOpenSettings }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const qualityCanvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
@@ -177,20 +181,35 @@ const CardScanner: React.FC<CardScannerProps> = ({ onScanComplete, onCancel }) =
     }
   };
 
-  const startAnalysis = () => {
+  const startAnalysis = async () => {
     if (!frontImg || !backImg) return;
+    
+    // Decrypt on demand
+    const apiKey = await getDecryptedApiKey(masterKey);
+    if (!apiKey) {
+      if (onOpenSettings) {
+           if (window.confirm("Gemini API Key required for analysis. Open Settings?")) {
+               onOpenSettings();
+           }
+      } else {
+           alert("Please configure Gemini API Key in Settings first.");
+      }
+      onCancel();
+      return;
+    }
+
     setStep('analyzing');
-    processImages(frontImg, backImg);
+    processImages(frontImg, backImg, apiKey);
   };
 
-  const processImages = async (front: string, back: string) => {
+  const processImages = async (front: string, back: string, apiKey: string) => {
     setIsProcessing(true);
     const phaseInterval = setInterval(() => {
       setAnalysisPhase(prev => (prev < ANALYSIS_PHASES.length - 1 ? prev + 1 : prev));
     }, 1500);
 
     try {
-      const result = await analyzeCardImages(front, back);
+      const result = await analyzeCardImages(front, back, apiKey);
       if (result) {
         setTimeout(() => onScanComplete(result), 800);
       } else {
