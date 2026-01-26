@@ -35,7 +35,7 @@ const showNotification = (title: string, options?: NotificationOptions) => {
     }
 };
 
-export const checkAndNotifyForExpiringCards = (cards: CreditCard[], periodInMonths: number) => {
+export const checkAndNotifyForExpiringCards = async (cards: CreditCard[], periodInMonths: number) => {
     if (Notification.permission !== 'granted') {
         console.log("Notification permission not granted. Skipping check.");
         return;
@@ -44,7 +44,7 @@ export const checkAndNotifyForExpiringCards = (cards: CreditCard[], periodInMont
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
-    const notifiedFlags = getNotifiedCards();
+    const notifiedFlags = await getNotifiedCards();
     let updatedFlags = { ...notifiedFlags };
     let hasChanges = false;
 

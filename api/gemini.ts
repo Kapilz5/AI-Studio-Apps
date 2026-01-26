@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 
 // Simple in-memory rate limiting store
@@ -13,6 +14,36 @@ export const config = {
       sizeLimit: '10mb',
     },
   },
+};
+
+// Strict Privacy Patterns
+const SENSITIVE_REGEX = [
+  /\b(?:\d[ -]*?){13,19}\b/, // PAN: 13-19 digits (Standard Cards)
+  /\b(0[1-9]|1[0-2])[\/.-](20[2-9]\d|[2-9]\d)\b/, // Expiry: MM/YY or MM/YYYY (Future dates)
+  /\b(cvv|cvc|cid|security\s?code)\W*\d{3,4}\b/i // CVV context: "CVV 123"
+];
+
+// Recursive function to scan for sensitive data in text fields
+const containsSensitiveData = (obj: any): boolean => {
+  if (typeof obj === 'string') {
+    return SENSITIVE_REGEX.some(regex => regex.test(obj));
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.some(item => containsSensitiveData(item));
+  }
+  
+  if (typeof obj === 'object' && obj !== null) {
+    // Skip checking 'inlineData' (Base64 images) to avoid false positives in binary strings
+    // We only want to police the TEXT prompts sent to the model
+    const entries = Object.entries(obj);
+    for (const [key, value] of entries) {
+      if (key === 'inlineData') continue;
+      if (containsSensitiveData(value)) return true;
+    }
+  }
+  
+  return false;
 };
 
 export default async function handler(req: any, res: any) {
@@ -86,6 +117,13 @@ export default async function handler(req: any, res: any) {
     // Validate existence but allow objects (for structured parts/images) or strings
     if (!prompt) {
       res.status(400).json({ error: 'Invalid request body. Missing "prompt" field.' });
+      return;
+    }
+
+    // STRICT PRIVACY CHECK
+    if (containsSensitiveData(prompt)) {
+      console.warn(`Blocked request from ${ip} due to sensitive data detection.`);
+      res.status(400).json({ error: 'Sensitive card data cannot be sent to AI.' });
       return;
     }
 

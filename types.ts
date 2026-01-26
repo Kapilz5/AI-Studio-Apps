@@ -45,3 +45,9 @@ export interface CardFormData {
   currentSpend: number;
   bestOffer?: string;
 }
+
+export interface BackupPayload {
+  version: number;
+  timestamp: number;
+  data: CreditCard[];
+}

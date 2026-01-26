@@ -1,4 +1,35 @@
+
 import { Benefit, CardCategory } from "../types";
+
+// Privacy Regex Patterns
+const PAN_REGEX = /\b(?:\d[ -]*?){13,19}\b/; // Matches 13-19 digit sequences (Card Numbers)
+const EXPIRY_REGEX = /\b(0[1-9]|1[0-2])[\/.-](20[2-9]\d|[2-9]\d)\b/; // Matches MM/YY or MM/YYYY
+const CVV_REGEX = /\b(cvv|cvc|cid|security\s?code)\W*\d{3,4}\b/i; // Matches CVV context
+
+const validatePrivacy = (text: string) => {
+  if (!text) return;
+  
+  if (PAN_REGEX.test(text)) {
+    throw new Error("Sensitive card data cannot be sent to AI.");
+  }
+  if (EXPIRY_REGEX.test(text)) {
+    throw new Error("Sensitive card data cannot be sent to AI.");
+  }
+  if (CVV_REGEX.test(text)) {
+    throw new Error("Sensitive card data cannot be sent to AI.");
+  }
+};
+
+// Security Self-Check Routine
+export const checkPrivacyFilterIntegrity = (): boolean => {
+  try {
+    // Test with a dummy credit card number to ensure filter triggers
+    validatePrivacy("4111 1111 1111 1111");
+    return false; // Failed: Filter did not catch the data
+  } catch (e) {
+    return true; // Success: Filter blocked the data
+  }
+};
 
 // Helper to call the server-side proxy
 const callGeminiProxy = async (promptContent: any) => {
@@ -57,6 +88,9 @@ const extractJSON = (text: string) => {
 
 export const fetchCardBenefits = async (cardName: string, category: CardCategory): Promise<{ benefits: Omit<Benefit, 'id'>[], error?: string }> => {
   try {
+    // Client-side Privacy Check
+    validatePrivacy(cardName);
+
     // We construct the prompt object to be passed to the 'contents' parameter on the server
     const prompt = {
       parts: [{ 
@@ -92,6 +126,9 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
   if (!userInput || userInput.trim().length < 2) return { suggestions: [] };
   
   try {
+    // Client-side Privacy Check
+    validatePrivacy(userInput);
+
     const prompt = {
       parts: [{
         text: `Suggest up to 5 popular Indian ${category} card names starting with or similar to: "${userInput}".
@@ -117,6 +154,8 @@ export const getCardSuggestions = async (userInput: string, category: CardCatego
 
 export const analyzeCardImages = async (frontBase64: string, backBase64: string): Promise<any> => {
   try {
+    // Note: We do not regex check base64 strings as they are binary data. 
+    // The server will enforce privacy on any text parts accompanying the request.
     const prompt = {
       parts: [
         { inlineData: { mimeType: "image/jpeg", data: frontBase64 } },

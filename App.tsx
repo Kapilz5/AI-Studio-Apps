@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2 } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
@@ -14,6 +15,8 @@ import { checkAndNotifyForExpiringCards } from './utils/notifications';
 type ViewMode = 'Dashboard' | 'Explorer';
 type ActiveFilter = 'none' | 'near' | 'furthest';
 
+const INACTIVITY_TIMEOUT_MS = 60 * 1000; // 60 seconds inactivity timeout
+
 const App: React.FC = () => {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -23,14 +26,17 @@ const App: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'age' | 'expiry' | 'limit'>('age');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('none');
-  const [notificationPeriod, setNotificationPeriodState] = useState(getNotificationPeriod());
+  const [notificationPeriod, setNotificationPeriodState] = useState(2);
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   
   const [isAppLocked, setIsAppLocked] = useState(true);
   const [isSetupRequired, setIsSetupRequired] = useState(false);
   const [masterKey, setMasterKey] = useState<Uint8Array | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   const isUnlockedRef = useRef(false);
+  // FIX: Use ReturnType<typeof setTimeout> instead of NodeJS.Timeout to avoid namespace error in browser environments
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -50,24 +56,67 @@ const App: React.FC = () => {
     }
   }, [isDark]);
 
+  // Lock app function
+  const lockApp = useCallback(() => {
+    if (isUnlockedRef.current) {
+      setIsAppLocked(true);
+      setMasterKey(null);
+      isUnlockedRef.current = false;
+      setIsFormOpen(false);
+      setIsSettingsOpen(false);
+    }
+  }, []);
+
+  // Inactivity Timer Logic
   useEffect(() => {
-    const checkSecurityStatus = () => {
-      const pinHash = getMPINHash();
-      if (!pinHash) {
-        setIsSetupRequired(true);
-        setIsAppLocked(false);
-      } else {
-        setIsAppLocked(true);
+    const resetTimer = () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      if (!isAppLocked && isUnlockedRef.current) {
+        inactivityTimerRef.current = setTimeout(() => {
+          lockApp();
+        }, INACTIVITY_TIMEOUT_MS);
       }
     };
 
-    checkSecurityStatus();
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
+    
+    if (!isAppLocked) {
+      resetTimer();
+      events.forEach(e => document.addEventListener(e, resetTimer));
+    }
+
+    return () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      events.forEach(e => document.removeEventListener(e, resetTimer));
+    };
+  }, [isAppLocked, lockApp]);
+
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        const pinHash = await getMPINHash();
+        const notifPeriod = await getNotificationPeriod();
+        
+        setNotificationPeriodState(notifPeriod);
+        
+        if (!pinHash) {
+          setIsSetupRequired(true);
+          setIsAppLocked(false);
+        } else {
+          setIsAppLocked(true);
+        }
+      } catch (e) {
+        console.error("Storage init failed:", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initApp();
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && isUnlockedRef.current) {
-        setIsAppLocked(true);
-        setMasterKey(null);
-        isUnlockedRef.current = false;
+      if (document.visibilityState === 'hidden') {
+        lockApp();
       }
     };
 
@@ -75,7 +124,7 @@ const App: React.FC = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [lockApp]);
 
   // Effect to run notification checks when app is unlocked or data changes
   useEffect(() => {
@@ -99,7 +148,7 @@ const App: React.FC = () => {
     if (editingCard) {
       // If expiry date changed, reset the notification flag for this card
       if (editingCard.expiryMonth !== data.expiryMonth || editingCard.expiryYear !== data.expiryYear) {
-        removeNotifiedFlag(editingCard.id);
+        await removeNotifiedFlag(editingCard.id);
       }
       updatedCards = cards.map(c => c.id === editingCard.id ? { ...c, ...data, benefits } : c);
     } else {
@@ -126,7 +175,7 @@ const App: React.FC = () => {
     setCards(updated);
     await saveCards(updated, masterKey);
     // Remove any notification flags for the deleted card
-    removeNotifiedFlag(id);
+    await removeNotifiedFlag(id);
   };
 
   const handleEditCard = (card: CreditCard) => { setEditingCard(card); setIsFormOpen(true); };
@@ -200,6 +249,10 @@ const App: React.FC = () => {
   const toggleFilter = (filter: ActiveFilter) => {
     setActiveFilter(prev => prev === filter ? 'none' : filter);
   };
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>;
+  }
 
   if (isAppLocked || isSetupRequired) {
     return <SecurityAuth mode={isSetupRequired ? "setup" : "verify"} onSuccess={handleUnlockSuccess} />;
@@ -387,7 +440,13 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {sortedCards.map(card => (
                   <div key={card.id} id={`card-${card.id}`} className={`transition-all duration-700 ${highlightedCardId === card.id ? 'ring-8 ring-purple-500/20 scale-105 z-20 rounded-[2.5rem]' : ''}`}>
-                    <CardItem card={card} onDelete={handleDeleteCard} onEdit={handleEditCard} onUpdateSpend={handleUpdateSpend} />
+                    <CardItem 
+                      card={card} 
+                      onDelete={handleDeleteCard} 
+                      onEdit={handleEditCard} 
+                      onUpdateSpend={handleUpdateSpend}
+                      notificationPeriod={notificationPeriod} 
+                    />
                   </div>
                 ))}
               </div>
@@ -402,7 +461,7 @@ const App: React.FC = () => {
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
            <div className="bg-slate-900/90 dark:bg-blue-600/90 text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl backdrop-blur-md border border-white/10 animate-in slide-in-from-bottom-10 duration-700">
               <CheckCircle2 size={16} className="text-emerald-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Vault Secured with Local AES-256</span>
+              <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Vault Secured with AES-256</span>
            </div>
         </div>
       )}

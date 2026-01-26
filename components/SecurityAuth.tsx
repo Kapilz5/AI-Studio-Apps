@@ -14,6 +14,7 @@ import {
 } from '../utils/storage';
 import { CreditCard } from '../types';
 import { UI_STRINGS } from '../locales/en';
+import PrivacyScreen from './PrivacyScreen';
 
 interface SecurityAuthProps {
   mode: 'setup' | 'verify' | 'reset';
@@ -23,18 +24,28 @@ interface SecurityAuthProps {
 
 const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSuccess, onCancel }) => {
   const [mode, setMode] = useState(initialMode);
+  const [showPrivacyNotice, setShowPrivacyNotice] = useState(initialMode === 'setup');
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [secretWord, setSecretWord] = useState('');
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isBioEnrolled, setIsBioEnrolled] = useState(getBiometricEnrolled());
+  const [isBioEnrolled, setIsBioEnrolled] = useState(false);
   const [useBiometricsDuringSetup, setUseBiometricsDuringSetup] = useState(false);
   const [isBioSetupSuccess, setIsBioSetupSuccess] = useState(false);
   const [isBioAvailable, setIsBioAvailable] = useState(false);
   const [bioHint, setBioHint] = useState<string | null>(null);
   
   const bioTriggered = useRef(false);
+
+  // Check bio status on mount
+  useEffect(() => {
+    const checkBio = async () => {
+        const enrolled = await getBiometricEnrolled();
+        setIsBioEnrolled(!!enrolled);
+    };
+    checkBio();
+  }, [mode]);
 
   // Check for hardware support on mount
   useEffect(() => {
@@ -52,15 +63,17 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
   // Handle visibility-aware biometric trigger
   useEffect(() => {
     setMode(initialMode);
+    setShowPrivacyNotice(initialMode === 'setup');
     setError('');
     setPin('');
     setConfirmPin('');
     setSecretWord('');
 
-    const tryAutoBioUnlock = () => {
+    const tryAutoBioUnlock = async () => {
+      const enrolled = await getBiometricEnrolled();
       if (
         initialMode === 'verify' && 
-        getBiometricEnrolled() && 
+        enrolled && 
         isBioAvailable && 
         !bioTriggered.current && 
         document.visibilityState === 'visible'
@@ -103,7 +116,8 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
     try {
       const masterKey = await unlockWithBiometrics();
       if (masterKey) {
-        const cards = hasStoredData() ? await decryptLocalCards(masterKey) : [];
+        const hasData = await hasStoredData();
+        const cards = hasData ? await decryptLocalCards(masterKey) : [];
         onSuccess(masterKey, cards);
       }
     } catch (err: any) {
@@ -188,7 +202,8 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
       } else if (mode === 'verify') {
         const masterKey = await unlockWithMPIN(pin);
         if (masterKey) {
-          const cards = hasStoredData() ? await decryptLocalCards(masterKey) : [];
+          const hasData = await hasStoredData();
+          const cards = hasData ? await decryptLocalCards(masterKey) : [];
           onSuccess(masterKey, cards);
         } else {
           throw new Error(UI_STRINGS.security.mpin_incorrect_error);
@@ -215,6 +230,10 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
       setIsProcessing(false);
     }
   };
+
+  if (showPrivacyNotice) {
+    return <PrivacyScreen onContinue={() => setShowPrivacyNotice(false)} isOnboarding={true} />;
+  }
 
   const isSubmitDisabled = 
     isProcessing || 
@@ -392,15 +411,6 @@ const SecurityAuth: React.FC<SecurityAuthProps> = ({ mode: initialMode, onSucces
               <Trash2 size={12} />
               <span>{UI_STRINGS.security.emergency_wipe_btn}</span>
             </button>
-            
-            {mode === 'setup' && (
-              <div className="mt-8 px-4">
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                  <span className="font-bold text-slate-400 block mb-1">{UI_STRINGS.privacy.notice_title}</span>
-                  {UI_STRINGS.privacy.notice_text}
-                </p>
-              </div>
-            )}
         </div>
       </div>
     </div>

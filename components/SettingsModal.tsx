@@ -1,22 +1,22 @@
-import { Cloud, Database, Fingerprint, Loader2, LogIn, LogOut, Mail, RefreshCw, ShieldAlert, ShieldCheck, Trash2, X, Lock as LockIcon, Shield, Smartphone, Share, Plus, RefreshCcw, CheckCircle2, Bell, BellRing, User, BookOpen, ChevronDown, CheckSquare, Square, BellPlus, BellOff, Key } from 'lucide-react';
+
+import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, BellRing, BellPlus, BellOff, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { CreditCard } from '../types';
 import { 
   getBiometricEnrolled, 
-  getFromCloudMock, 
-  getUser, 
-  saveCards, 
-  saveToCloudMock, 
-  saveUser, 
   setBiometricEnrolled, 
   wipeEverything, 
-  encryptAppDataForCloud, 
-  decryptAppDataFromCloud,
   getNotificationPeriod,
   setNotificationPeriod,
   enrollBiometrics,
+  exportEncryptedBackup,
+  importEncryptedBackup,
+  saveCards,
+  runStorageIntegrityCheck
 } from '../utils/storage';
+import { checkPrivacyFilterIntegrity } from '../services/geminiService';
 import SecurityAuth from './SecurityAuth';
+import PrivacyScreen from './PrivacyScreen';
 import { UI_STRINGS } from '../locales/en';
 import { requestPermission } from '../utils/notifications';
 
@@ -28,94 +28,63 @@ interface SettingsModalProps {
   onNotifPeriodChange?: (months: number) => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onClose, masterKey, onNotifPeriodChange }) => {
-  const [user, setUser] = useState<{ name: string, email: string, picture?: string } | null>(getUser());
-  const [isSyncing, setIsSyncing] = useState(false);
+const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey, onNotifPeriodChange, onCardsSynced }) => {
   const [showWipeConfirm, setShowWipeConfirm] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(getBiometricEnrolled());
-  const [notifPeriod, setNotifPeriod] = useState(getNotificationPeriod());
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false);
+  const [notifPeriod, setNotifPeriod] = useState(2);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [showMpinReset, setShowMpinReset] = useState(false);
-  
-  const googleBtnRef = useRef<HTMLDivElement>(null);
+  const [showPrivacyScreen, setShowPrivacyScreen] = useState(false);
 
+  // Backup States
+  const [backupMode, setBackupMode] = useState<'export' | 'import' | null>(null);
+  const [backupPassword, setBackupPassword] = useState('');
+  const [isProcessingBackup, setIsProcessingBackup] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Security Health State
+  const [health, setHealth] = useState<{
+    keysSecure: boolean;
+    storageClean: boolean;
+    aiFilterActive: boolean;
+    leaks: string[];
+    loading: boolean;
+  }>({
+    keysSecure: false,
+    storageClean: false,
+    aiFilterActive: false,
+    leaks: [],
+    loading: true
+  });
+
+  // Load async settings on mount
   useEffect(() => {
+    const loadSettings = async () => {
+        const bio = await getBiometricEnrolled();
+        setIsBiometricEnrolled(!!bio);
+        
+        const np = await getNotificationPeriod();
+        setNotifPeriod(np);
+
+        // Run Security Self-Check
+        const storageCheck = await runStorageIntegrityCheck();
+        const aiCheck = checkPrivacyFilterIntegrity();
+        
+        setHealth({
+            keysSecure: storageCheck.keysFound,
+            storageClean: storageCheck.leaks.length === 0,
+            aiFilterActive: aiCheck,
+            leaks: storageCheck.leaks,
+            loading: false
+        });
+    };
+    loadSettings();
+    
     if ('Notification' in window) {
       setNotifPermission(Notification.permission);
     }
   }, []);
 
-  useEffect(() => {
-    if (!user && (window as any).google?.accounts?.id) {
-      try {
-        (window as any).google.accounts.id.initialize({
-          client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
-          callback: (response: any) => {
-            const simulatedUser = {
-              name: "Verified Account",
-              email: "secure.user@gmail.com",
-              picture: "https://lh3.googleusercontent.com/a/default-user=s120-c"
-            };
-            setUser(simulatedUser);
-            saveUser(simulatedUser);
-          }
-        });
-        if (googleBtnRef.current) {
-          (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
-            theme: "outline",
-            size: "large",
-            width: 320,
-            shape: "pill"
-          });
-        }
-      } catch (e) {
-        console.error("Google Sign-in init error", e);
-      }
-    }
-  }, [user]);
-
-  const handleLogout = () => { setUser(null); saveUser(null); };
-
-  const handleSyncToCloud = async () => {
-    if (!user || !masterKey) return;
-    setIsSyncing(true);
-    setSyncStatus('idle');
-    try {
-      const encryptedBlob = await encryptAppDataForCloud(cards, masterKey);
-      saveToCloudMock(encryptedBlob);
-      setSyncStatus('success');
-      setTimeout(() => setSyncStatus('idle'), 3000);
-    } catch (err) {
-      setSyncStatus('error');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleRestoreFromCloud = async () => {
-    if (!user || !masterKey) return;
-    setIsSyncing(true);
-    try {
-      const encryptedBlob = getFromCloudMock();
-      if (!encryptedBlob) {
-        alert("No cloud backup found for this account.");
-        return;
-      }
-      
-      const { cards: restoredCards } = await decryptAppDataFromCloud(encryptedBlob, masterKey);
-      await saveCards(restoredCards, masterKey);
-      onCardsSynced(restoredCards);
-      setSyncStatus('success');
-      setTimeout(() => setSyncStatus('idle'), 3000);
-    } catch (err) {
-      alert(UI_STRINGS.settings.restore_failed);
-      setSyncStatus('error');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-  
   const handleRequestNotifPermission = async () => {
     const permission = await requestPermission();
     setNotifPermission(permission);
@@ -129,7 +98,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
 
   const toggleBiometrics = async () => {
     if (isBiometricEnrolled) {
-      setBiometricEnrolled(false);
+      await setBiometricEnrolled(false);
       setIsBiometricEnrolled(false);
     } else {
       const mpin = prompt("Enter your MPIN to authorize FaceID/TouchID:");
@@ -144,6 +113,70 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
     }
   };
 
+  const handleExport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (backupPassword.length < 4) {
+      alert("Password must be at least 4 characters.");
+      return;
+    }
+
+    setIsProcessingBackup(true);
+    try {
+      const blob = await exportEncryptedBackup(cards, backupPassword);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mycards_backup_${new Date().toISOString().split('T')[0]}.bin`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setBackupMode(null);
+      setBackupPassword('');
+    } catch (err) {
+      console.error(err);
+      alert("Export failed.");
+    } finally {
+      setIsProcessingBackup(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setBackupMode('import');
+    }
+  };
+
+  const handleImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const file = fileInputRef.current?.files?.[0];
+    if (!file || backupPassword.length < 1) return;
+
+    setIsProcessingBackup(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const restoredCards = await importEncryptedBackup(buffer, backupPassword);
+      
+      // Save directly to encrypted storage
+      await saveCards(restoredCards, masterKey);
+      onCardsSynced(restoredCards);
+      
+      alert(`Successfully restored ${restoredCards.length} cards.`);
+      setBackupMode(null);
+      setBackupPassword('');
+      onClose(); // Close modal to refresh view context if needed
+    } catch (err: any) {
+      console.error(err);
+      alert("Import failed: " + err.message);
+    } finally {
+      setIsProcessingBackup(false);
+    }
+  };
+
   if (showMpinReset) {
     return (
       <SecurityAuth 
@@ -151,6 +184,60 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
         onSuccess={() => setShowMpinReset(false)} 
         onCancel={() => setShowMpinReset(false)}
       />
+    );
+  }
+
+  if (showPrivacyScreen) {
+    return <PrivacyScreen onContinue={() => setShowPrivacyScreen(false)} />;
+  }
+
+  // Backup Modal Overlay
+  if (backupMode) {
+    return (
+        <div className="fixed inset-0 z-[80] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 border border-white/10 shadow-2xl animate-in zoom-in duration-200">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                        {backupMode === 'export' ? UI_STRINGS.settings.export_modal_title : UI_STRINGS.settings.import_modal_title}
+                    </h3>
+                    <button onClick={() => { setBackupMode(null); setBackupPassword(''); }} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500"><X size={20} /></button>
+                </div>
+                
+                <form onSubmit={backupMode === 'export' ? handleExport : handleImport} className="space-y-4">
+                    {backupMode === 'import' && (
+                        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-800 flex items-start gap-3">
+                            <ShieldAlert size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-xs font-bold text-amber-700 dark:text-amber-400">{UI_STRINGS.settings.import_warning}</p>
+                        </div>
+                    )}
+                    
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{UI_STRINGS.settings.password_label}</label>
+                        <input 
+                            type="password" 
+                            autoFocus
+                            value={backupPassword}
+                            onChange={e => setBackupPassword(e.target.value)}
+                            placeholder="***"
+                            className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 focus:border-blue-500 outline-none font-bold text-slate-900 dark:text-white"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-2 font-medium">
+                            {backupMode === 'export' ? UI_STRINGS.settings.password_hint : UI_STRINGS.settings.import_password_hint}
+                        </p>
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        disabled={isProcessingBackup || !backupPassword}
+                        className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {isProcessingBackup ? UI_STRINGS.common.loading : (
+                            backupMode === 'export' ? UI_STRINGS.settings.export_action : UI_STRINGS.settings.import_action
+                        )}
+                    </button>
+                </form>
+            </div>
+        </div>
     );
   }
 
@@ -169,50 +256,53 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
 
         <div className="p-8 space-y-8 text-left">
           
-          {/* Google Account */}
+          {/* System Health Check */}
           <div className="space-y-4">
-            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Authorized Identity</label>
-            {user ? (
-              <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 flex items-center gap-4 transition-all">
-                <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg border-2 border-white dark:border-slate-600">
-                  <img src={user.picture || `https://ui-avatars.com/api/?name=${user.name}&background=random`} alt="User" className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-grow">
-                  <p className="font-black text-slate-900 dark:text-white text-sm">{user.name}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate font-medium">{user.email}</p>
-                </div>
-                <button onClick={handleLogout} className="p-3 text-slate-400 hover:text-rose-500 transition-colors">
-                    <LogOut size={18} />
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4">
-                 <div ref={googleBtnRef} className="w-full flex justify-center min-h-[44px] bg-slate-50 dark:bg-slate-800/50 rounded-full items-center text-[10px] text-slate-400 border border-dashed border-slate-200 dark:border-slate-700">
-                    <span className="opacity-0">Google Sign-In Placeholder</span>
-                 </div>
-                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest text-center italic">Sign in for encrypted cloud backups</p>
-              </div>
-            )}
-          </div>
+             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{UI_STRINGS.settings.health_title}</label>
+             <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-[2rem] space-y-4">
+                {!health.loading && (
+                    <>
+                        {/* Encryption Status */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Lock size={16} className={health.keysSecure ? 'text-slate-400' : 'text-rose-400'} />
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{UI_STRINGS.settings.health_enc}</span>
+                            </div>
+                            <div className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${health.keysSecure ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                {health.keysSecure ? 'SECURE' : 'ERROR'}
+                            </div>
+                        </div>
+                        
+                        {/* Storage Status */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <FileLock size={16} className={health.storageClean ? 'text-slate-400' : 'text-rose-400'} />
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{UI_STRINGS.settings.health_storage}</span>
+                            </div>
+                            <div className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${health.storageClean ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                {health.storageClean ? 'CLEAN' : 'LEAK DETECTED'}
+                            </div>
+                        </div>
+                        
+                        {/* AI Status */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Activity size={16} className={health.aiFilterActive ? 'text-slate-400' : 'text-rose-400'} />
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{UI_STRINGS.settings.health_ai}</span>
+                            </div>
+                            <div className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${health.aiFilterActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                {health.aiFilterActive ? 'ACTIVE' : 'FAILED'}
+                            </div>
+                        </div>
 
-          {/* Sync & Backup */}
-          <div className="space-y-4">
-             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Encrypted Cloud Sync</label>
-             <div className="grid grid-cols-2 gap-3">
-                <button onClick={handleSyncToCloud} disabled={!user || isSyncing} className="flex flex-col items-center gap-2 p-5 bg-blue-600 text-white rounded-3xl font-bold shadow-lg shadow-blue-500/20 disabled:opacity-40 transition-all active:scale-95">
-                  <Cloud size={24} />
-                  <span className="text-xs font-black uppercase tracking-widest">Backup</span>
-                </button>
-                <button onClick={handleRestoreFromCloud} disabled={!user || isSyncing} className="flex flex-col items-center gap-2 p-5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-3xl font-bold disabled:opacity-40 transition-all active:scale-95">
-                  <RefreshCw size={24} className={isSyncing ? 'animate-spin' : ''} />
-                  <span className="text-xs font-black uppercase tracking-widest">Restore</span>
-                </button>
+                        {!health.storageClean && (
+                            <div className="pt-2 text-[10px] font-bold text-rose-500 leading-tight">
+                                {UI_STRINGS.settings.health_leaks} {health.leaks.join(', ')}
+                            </div>
+                        )}
+                    </>
+                )}
              </div>
-             {syncStatus === 'success' && (
-               <div className="flex items-center justify-center gap-2 text-emerald-500 font-bold text-xs animate-in slide-in-from-bottom-2">
-                 <CheckCircle2 size={16} /><span>Synced successfully</span>
-               </div>
-             )}
           </div>
 
           {/* Notification Settings */}
@@ -250,6 +340,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
             </div>
           </div>
 
+          {/* Backup & Restore */}
+          <div className="space-y-4">
+            <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{UI_STRINGS.settings.backup_section_title}</label>
+            <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => setBackupMode('export')} className="p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex flex-col items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 flex items-center justify-center"><Download size={20} /></div>
+                    <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300">Export</span>
+                </button>
+                <button onClick={handleImportClick} className="p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex flex-col items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-fuchsia-50 dark:bg-fuchsia-900/20 text-fuchsia-600 flex items-center justify-center"><Upload size={20} /></div>
+                    <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300">Restore</span>
+                </button>
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept=".bin" 
+                    onChange={handleFileChange}
+                />
+            </div>
+          </div>
+
           {/* Device Security */}
           <div className="space-y-4">
             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Device Security</label>
@@ -277,6 +389,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBiometricEnrolled ? 'translate-x-5' : 'translate-x-1'}`} />
                 </button>
               </div>
+
+              <button onClick={() => setShowPrivacyScreen(true)} className="w-full p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm group">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform"><ShieldCheck size={20} /></div>
+                  <div>
+                    <p className="text-sm font-black text-slate-900 dark:text-white">{UI_STRINGS.settings.privacy_btn}</p>
+                    <p className="text-[10px] text-slate-500 font-bold">{UI_STRINGS.settings.privacy_hint}</p>
+                  </div>
+                </div>
+                <Smartphone size={16} className="text-slate-300" />
+              </button>
             </div>
           </div>
 
@@ -285,20 +408,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onCardsSynced, onC
             <label className="block text-[10px] font-black text-rose-400 dark:text-rose-500 uppercase tracking-[0.2em]">Danger Zone</label>
             {showWipeConfirm ? (
               <div className="p-5 bg-rose-50 dark:bg-rose-900/20 rounded-3xl border-2 border-rose-200 dark:border-rose-800 animate-in zoom-in duration-200">
-                <p className="text-xs text-rose-600 mb-4 font-black">Permanently delete all vault data?</p>
+                <div className="flex flex-col items-center gap-2 mb-4">
+                    <ShieldAlert size={24} className="text-rose-600" />
+                    <p className="text-xs text-rose-600 font-black">CRITICAL: This is irreversible.</p>
+                    <p className="text-[10px] text-rose-500 font-bold">All encrypted records and keys will be destroyed.</p>
+                </div>
                 <div className="flex gap-2">
                   <button onClick={() => setShowWipeConfirm(false)} className="flex-1 py-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest">Cancel</button>
-                  <button onClick={() => wipeEverything()} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-black text-xs uppercase tracking-widest">Wipe All</button>
+                  <button onClick={() => wipeEverything()} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-black text-xs uppercase tracking-widest">Delete All</button>
                 </div>
               </div>
             ) : (
               <button onClick={() => setShowWipeConfirm(true)} className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-rose-50 dark:bg-rose-900/10 text-rose-600 dark:text-rose-400 rounded-2xl font-black text-sm hover:bg-rose-100 transition-all border border-rose-100 dark:border-rose-900/30">
-                <Trash2 size={18} /><span>Wipe Local Vault</span>
+                <Trash2 size={18} /><span>Emergency Delete All Data</span>
               </button>
             )}
           </div>
           
-          {/* Privacy Notice */}
+          {/* Privacy Notice Footer */}
           <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
             <div className="flex items-center justify-center gap-2 text-slate-400 mb-2">
               <Shield size={14} />

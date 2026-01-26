@@ -9,6 +9,8 @@ export const UI_STRINGS = {
     delete: "Delete",
     edit: "Edit",
     back: "Back",
+    continue: "I Understand",
+    close: "Close",
     search_placeholder: "Search vault or card ID...",
     loading: "Processing...",
     retry: "Retake",
@@ -114,6 +116,25 @@ export const UI_STRINGS = {
     danger_zone_label: "Danger Zone",
     wipe_vault_btn: "Wipe Local Vault",
     wipe_confirm_text: "Permanently delete all vault data?",
+    privacy_btn: "Privacy & Security",
+    privacy_hint: "Local storage & Data policy",
+    backup_section_title: "Manual Backup",
+    backup_hint: "Export encrypted file",
+    export_btn: "Export Encrypted Backup",
+    import_btn: "Restore from File",
+    export_modal_title: "Create Backup",
+    import_modal_title: "Restore Backup",
+    password_label: "Encryption Password",
+    password_hint: "Used to encrypt your backup file. Don't lose this.",
+    import_password_hint: "Enter the password used to create this backup.",
+    export_action: "Download Backup",
+    import_action: "Decrypt & Restore",
+    import_warning: "This will REPLACE your current vault data.",
+    health_title: "System Health",
+    health_enc: "Encryption Core",
+    health_storage: "Storage Hygiene",
+    health_ai: "AI Privacy Filter",
+    health_leaks: "Found plaintext data: ",
   },
   benefits_explorer: {
     title: "Benefit Explorer",
@@ -149,5 +170,14 @@ export const UI_STRINGS = {
   privacy: {
     notice_title: "Privacy Notice",
     notice_text: "This app uses Google Gemini AI. User prompts may be sent to Google for processing. No personal data is stored by us."
+  },
+  privacy_screen: {
+    title: "Privacy & Security",
+    subtitle: "Zero Knowledge Architecture",
+    local_storage: "All card data is stored locally on your device using strong encryption.",
+    no_sync: "We do not sync your cards to any server, cloud, email, or account.",
+    no_access: "We cannot access your cards.",
+    ai_privacy: "AI features never receive full card numbers or CVV.",
+    data_loss: "Resetting your phone or deleting this app permanently removes all cards."
   }
 };

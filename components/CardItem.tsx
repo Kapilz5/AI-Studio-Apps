@@ -1,30 +1,46 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CreditCard as CardType } from '../types';
-import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCircle, Eye, EyeOff, Lock, Clock, Plus, X, Check, PartyPopper } from 'lucide-react';
+import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCircle, Eye, EyeOff, Lock, Clock, Plus, X, Check, PartyPopper, Copy, ClipboardCheck } from 'lucide-react';
 import SecurityAuth from './SecurityAuth';
 import { UI_STRINGS } from '../locales/en';
-import { getNotificationPeriod } from '../utils/storage';
 
 interface CardItemProps {
   card: CardType;
   onDelete: (id: string) => void;
   onEdit: (card: CardType) => void;
   onUpdateSpend?: (id: string, amount: number) => void;
+  notificationPeriod?: number;
 }
 
-const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpend }) => {
+const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpend, notificationPeriod = 2 }) => {
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSensitiveVisible, setIsSensitiveVisible] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [revealTimeLeft, setRevealTimeLeft] = useState(0);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
   
   const startX = useRef(0);
   const currentX = useRef(0);
   const swipeThreshold = -60;
   const maxSwipe = -120;
 
+  // 1. Anti-Screenshot / Privacy Blur
+  // Immediately hide sensitive data if the app goes to background (user switches apps, opens task switcher)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsSensitiveVisible(false);
+        setRevealTimeLeft(0);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  // 2. Reveal Timeout: 60 Seconds
   useEffect(() => {
     let timer: any;
     if (isSensitiveVisible && revealTimeLeft > 0) {
@@ -42,11 +58,11 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
-    const period = getNotificationPeriod();
+    const period = notificationPeriod;
     
     const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
     return monthDiff >= 0 && monthDiff <= period;
-  }, [card.expiryMonth, card.expiryYear]);
+  }, [card.expiryMonth, card.expiryYear, notificationPeriod]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -86,15 +102,40 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
 
   const handleToggleSensitive = () => {
     if (isSensitiveVisible) {
+      // Manual Hide
       setIsSensitiveVisible(false);
       setRevealTimeLeft(0);
-    } else setShowAuthModal(true);
+    } else {
+      // Authenticate to Show
+      setShowAuthModal(true);
+    }
   };
 
   const onAuthSuccess = () => {
     setIsSensitiveVisible(true);
-    setRevealTimeLeft(30);
+    setRevealTimeLeft(60); // 60s limit as per session requirement
     setShowAuthModal(false);
+  };
+
+  // 3. Secure Copy with Auto-Clear
+  const handleSecureCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!card.fullNumber) return;
+
+    try {
+      await navigator.clipboard.writeText(card.fullNumber);
+      setCopyStatus('copied');
+      
+      // Reset icon after 2s
+      setTimeout(() => setCopyStatus('idle'), 2000);
+
+      // Auto-clear clipboard after 30s
+      setTimeout(() => {
+        navigator.clipboard.writeText(' ').catch(() => {});
+      }, 30000);
+    } catch (err) {
+      console.error('Failed to copy', err);
+    }
   };
 
   const formatFullNumber = (num: string) => {
@@ -155,32 +196,50 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
               <div className="w-14 h-10 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-lg shadow-inner opacity-90" />
               <div className="flex flex-col items-end gap-3">
                 <span className="text-[10px] font-black bg-white/10 px-2 py-1 rounded-lg uppercase tracking-widest backdrop-blur-md border border-white/10">{card.cardCategory || 'CARD'}</span>
-                <button onClick={(e) => { e.stopPropagation(); handleToggleSensitive(); }} className={`p-2.5 rounded-2xl transition-all ${isSensitiveVisible ? 'bg-white text-slate-900' : 'bg-white/10 hover:bg-white/20'}`}>
-                  {isSensitiveVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                <button 
+                    onClick={(e) => { e.stopPropagation(); handleToggleSensitive(); }} 
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all border ${isSensitiveVisible ? 'bg-white text-slate-900 border-white' : 'bg-white/10 hover:bg-white/20 text-white border-white/20'}`}
+                >
+                  {isSensitiveVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                  <span className="text-[10px] font-black uppercase tracking-widest">{isSensitiveVisible ? 'Hide' : 'View'}</span>
                 </button>
               </div>
             </div>
             <div className="z-10 min-w-0">
               <div className="flex items-center gap-4 mb-3">
                 {renderNetworkLogo(card.cardType)}
-                <h3 className="text-2xl font-black truncate tracking-tight min-w-0" title={card.name}>{card.name}</h3>
+                <h3 className="text-2xl font-black truncate tracking-tight min-w-0 select-none" title={card.name}>{card.name}</h3>
               </div>
-              <div className="flex items-center space-x-2 text-white/70 font-mono text-xl tracking-[0.2em]">{formatFullNumber(card.fullNumber)}</div>
+              <div className="flex items-center gap-4">
+                  {/* Prevent selection of card number to avoid clipboard leaks, force use of button */}
+                  <div className="text-white/70 font-mono text-xl tracking-[0.2em] select-none pointer-events-none">
+                    {formatFullNumber(card.fullNumber)}
+                  </div>
+                  {isSensitiveVisible && (
+                    <button 
+                        onClick={handleSecureCopy}
+                        className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
+                        title="Copy securely (Auto-clears in 30s)"
+                    >
+                        {copyStatus === 'copied' ? <ClipboardCheck size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                    </button>
+                  )}
+              </div>
             </div>
             <div className="flex justify-between items-end z-10 border-t border-white/10 pt-4">
               <div className="flex gap-8 text-left">
                 <div>
                   <p className="text-[10px] uppercase font-black text-white/40 tracking-widest mb-1">Expires</p>
-                  <span className={`font-mono text-lg font-black ${expiring ? 'text-rose-300 underline' : ''}`}>{String(card.expiryMonth).padStart(2, '0')}/{String(card.expiryYear).slice(-2)}</span>
+                  <span className={`font-mono text-lg font-black select-none ${expiring ? 'text-rose-300 underline' : ''}`}>{String(card.expiryMonth).padStart(2, '0')}/{String(card.expiryYear).slice(-2)}</span>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-black text-white/40 tracking-widest mb-1">CVV</p>
-                  <span className="font-mono text-lg font-black tracking-widest">{isSensitiveVisible ? card.cvv : '•••'}</span>
+                  <span className="font-mono text-lg font-black tracking-widest select-none">{isSensitiveVisible ? card.cvv : '•••'}</span>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-[10px] uppercase font-black text-white/40 tracking-widest mb-1">Fee</p>
-                <p className="font-black text-xl">{formatCurrency(card.annualFee)}</p>
+                <p className="font-black text-xl select-none">{formatCurrency(card.annualFee)}</p>
               </div>
             </div>
           </div>
