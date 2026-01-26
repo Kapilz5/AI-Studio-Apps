@@ -101,10 +101,11 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  // Securely access API key from server environment variables
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Securely access API key from environment
+  // Strict compliance: Must use process.env.API_KEY
+  const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    console.error("Server Error: GEMINI_API_KEY environment variable is missing.");
+    console.error("Server Error: API_KEY environment variable is missing.");
     res.status(500).json({ error: 'Server configuration error' });
     return;
   }
@@ -120,7 +121,7 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    // STRICT PRIVACY CHECK
+    // STRICT PRIVACY CHECK (Server-Side)
     if (containsSensitiveData(prompt)) {
       console.warn(`Blocked request from ${ip} due to sensitive data detection.`);
       res.status(400).json({ error: 'Sensitive card data cannot be sent to AI.' });
@@ -131,7 +132,6 @@ export default async function handler(req: any, res: any) {
     const ai = new GoogleGenAI({ apiKey });
 
     // Generate content using the recommended flash model
-    // Note: contents can be a string or a structured object (Content/Part[])
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,

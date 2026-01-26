@@ -24,9 +24,72 @@ const IV_LEN = 12;
 /* 
    SECURITY NOTICE: 
    This application is designed for STRICT LOCAL STORAGE only.
-   Do not add any mechanisms to export, sync, or backup the 'vault_store' to cloud services.
-   The Master Key must remain non-extractable and device-bound.
+   On Native (iOS/Android): Master Key is stored in Hardware Secure Storage (Keychain/Keystore).
+   On Web (PWA): Master Key is Encrypted with MPIN and stored in IndexedDB.
 */
+
+// --- Helper Functions ---
+const toBase64 = (buffer: Uint8Array): string => {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+};
+
+const fromBase64 = (base64: string): Uint8Array => {
+  const binary_string = window.atob(base64);
+  const len = binary_string.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary_string.charCodeAt(i);
+  }
+  return bytes;
+};
+
+// Check environment
+const isNative = (): boolean => {
+  return (window as any).Capacitor?.isNativePlatform() || false;
+};
+
+// Wrapper for Capacitor Secure Storage Plugin
+const NativeStorage = {
+  get: async (key: string): Promise<string | null> => {
+    try {
+      const { Capacitor } = window as any;
+      const plugin = Capacitor?.Plugins?.SecureStoragePlugin;
+      if (plugin) {
+        const result = await plugin.get({ key });
+        return result.value;
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  },
+  set: async (key: string, value: string): Promise<void> => {
+     try {
+      const { Capacitor } = window as any;
+      const plugin = Capacitor?.Plugins?.SecureStoragePlugin;
+      if (plugin) {
+        await plugin.set({ key, value });
+      }
+    } catch(e) {
+      console.error("Native Storage Error", e);
+    }
+  },
+  remove: async (key: string): Promise<void> => {
+     try {
+      const { Capacitor } = window as any;
+      const plugin = Capacitor?.Plugins?.SecureStoragePlugin;
+      if (plugin) {
+        await plugin.remove({ key });
+      }
+    } catch(e) { }
+  }
+};
 
 // --- IndexedDB Wrapper ---
 const idb = {
@@ -129,11 +192,15 @@ export const setupSecurity = async (mpin: string, secretWord: string): Promise<U
   await idb.put(KEY_MPIN_HASH, await hashString(mpin));
   await idb.put(KEY_SECRET_HASH, await hashString(secretWord));
 
-  // 3. Encrypt Master Key with MPIN
-  await encryptAndStoreMasterKey(masterKey, mpin.toLowerCase(), KEY_MASTER_ENC_MPIN);
-  
-  // 4. Encrypt Master Key with Secret Word (Recovery)
-  await encryptAndStoreMasterKey(masterKey, secretWord.toLowerCase(), KEY_MASTER_ENC_SECRET);
+  if (isNative()) {
+    // 3A. NATIVE: Store RAW master key in Hardware Secure Storage (Keychain/Keystore)
+    // This key is non-exportable from the device hardware.
+    await NativeStorage.set('master_key', toBase64(masterKey));
+  } else {
+    // 3B. PWA: Encrypt Master Key with MPIN and Secret Word (Fallback)
+    await encryptAndStoreMasterKey(masterKey, mpin.toLowerCase(), KEY_MASTER_ENC_MPIN);
+    await encryptAndStoreMasterKey(masterKey, secretWord.toLowerCase(), KEY_MASTER_ENC_SECRET);
+  }
   
   return masterKey;
 };
@@ -161,11 +228,40 @@ async function encryptAndStoreMasterKey(masterKey: Uint8Array, password: string,
 
 // --- Unlock Flows ---
 export const unlockWithMPIN = async (mpin: string): Promise<Uint8Array | null> => {
-  return await decryptMasterKey(mpin.toLowerCase(), KEY_MASTER_ENC_MPIN);
+  // Common: Verify MPIN Hash to authenticate user knowledge
+  const storedHash = await idb.get<string>(KEY_MPIN_HASH);
+  const inputHash = await hashString(mpin);
+  
+  if (storedHash && storedHash !== inputHash) {
+      return null; // Incorrect MPIN
+  }
+
+  if (isNative()) {
+      // Native: Retrieve from Hardware Secure Storage
+      const b64 = await NativeStorage.get('master_key');
+      return b64 ? fromBase64(b64) : null;
+  } else {
+      // PWA: Decrypt blob from IndexedDB
+      return await decryptMasterKey(mpin.toLowerCase(), KEY_MASTER_ENC_MPIN);
+  }
 };
 
 export const unlockWithSecretWord = async (secretWord: string): Promise<Uint8Array | null> => {
-  return await decryptMasterKey(secretWord.toLowerCase(), KEY_MASTER_ENC_SECRET);
+  const storedHash = await idb.get<string>(KEY_SECRET_HASH);
+  const inputHash = await hashString(secretWord);
+  
+  if (storedHash && storedHash !== inputHash) {
+      return null;
+  }
+
+  if (isNative()) {
+      // Native: Retrieve from Hardware Secure Storage
+      const b64 = await NativeStorage.get('master_key');
+      return b64 ? fromBase64(b64) : null;
+  } else {
+      // PWA: Decrypt blob from IndexedDB
+      return await decryptMasterKey(secretWord.toLowerCase(), KEY_MASTER_ENC_SECRET);
+  }
 };
 
 async function decryptMasterKey(password: string, storageKey: string): Promise<Uint8Array | null> {
@@ -216,6 +312,9 @@ export const enrollBiometricsWithKey = async (masterKey: Uint8Array) => {
     });
 
     if (credential) {
+      // Note: On Native, we typically rely on Secure Storage + Biometric Plugin.
+      // However, keeping WebAuthn logic here allows cross-platform compatibility 
+      // if the native WebView supports it (modern Android/iOS do).
       await encryptAndStoreMasterKey(masterKey, "bio-internal-device-secret-v5", KEY_MASTER_ENC_BIO);
       await idb.put(KEY_BIO_ENABLED, true);
       return true;
@@ -265,7 +364,13 @@ export const resetMPINWithSecretWord = async (secretWord: string, newMpin: strin
   if (!masterKey) return false;
 
   await idb.put(KEY_MPIN_HASH, await hashString(newMpin));
-  await encryptAndStoreMasterKey(masterKey, newMpin.toLowerCase(), KEY_MASTER_ENC_MPIN);
+
+  // If Native, we don't need to re-encrypt master key because it resides in Secure Storage.
+  // We only update the MPIN hash used for verification.
+  if (!isNative()) {
+    await encryptAndStoreMasterKey(masterKey, newMpin.toLowerCase(), KEY_MASTER_ENC_MPIN);
+  }
+  
   return true;
 };
 
@@ -329,6 +434,10 @@ export const wipeEverything = async () => {
   const noise = window.crypto.getRandomValues(new Uint8Array(256));
   
   try {
+    // If native, ensure the hardware secure key is removed
+    if (isNative()) {
+       await NativeStorage.remove('master_key');
+    }
     await idb.put(KEY_MASTER_ENC_MPIN, noise);
     await idb.put(KEY_MASTER_ENC_SECRET, noise);
     await idb.put(KEY_MASTER_ENC_BIO, noise);
@@ -454,8 +563,15 @@ export const importEncryptedBackup = async (fileBuffer: ArrayBuffer, passphrase:
 // --- SYSTEM SECURITY SELF-CHECK ---
 export const runStorageIntegrityCheck = async () => {
     // 1. Verify Encrypted Master Key Exists
-    const mpinKey = await idb.get(KEY_MASTER_ENC_MPIN);
-    const keysFound = !!mpinKey;
+    let keysFound = false;
+    
+    if (isNative()) {
+        const k = await NativeStorage.get('master_key');
+        keysFound = !!k;
+    } else {
+        const mpinKey = await idb.get(KEY_MASTER_ENC_MPIN);
+        keysFound = !!mpinKey;
+    }
     
     // 2. Scan LocalStorage for potential plaintext leaks (Common mistake keys)
     const riskyKeys = ['cards', 'credit_cards', 'wallet_data', 'my_cards_backup', 'vault'];

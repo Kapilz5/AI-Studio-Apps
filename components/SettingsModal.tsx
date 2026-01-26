@@ -415,12 +415,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => setShowWipeConfirm(false)} className="flex-1 py-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest">Cancel</button>
-                  <button onClick={() => wipeEverything()} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-black text-xs uppercase tracking-widest">Delete All</button>
+                  <button onClick={() => wipeEverything()} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-black text-xs uppercase tracking-widest">Delete All My Data</button>
                 </div>
               </div>
             ) : (
               <button onClick={() => setShowWipeConfirm(true)} className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-rose-50 dark:bg-rose-900/10 text-rose-600 dark:text-rose-400 rounded-2xl font-black text-sm hover:bg-rose-100 transition-all border border-rose-100 dark:border-rose-900/30">
-                <Trash2 size={18} /><span>Emergency Delete All Data</span>
+                <Trash2 size={18} /><span>Delete All My Data</span>
               </button>
             )}
           </div>

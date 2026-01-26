@@ -19,6 +19,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSensitiveVisible, setIsSensitiveVisible] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingAuthAction, setPendingAuthAction] = useState<'view' | 'copy' | null>(null);
   const [revealTimeLeft, setRevealTimeLeft] = useState(0);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
   
@@ -107,21 +108,25 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
       setRevealTimeLeft(0);
     } else {
       // Authenticate to Show
+      setPendingAuthAction('view');
       setShowAuthModal(true);
     }
   };
 
   const onAuthSuccess = () => {
-    setIsSensitiveVisible(true);
-    setRevealTimeLeft(60); // 60s limit as per session requirement
     setShowAuthModal(false);
+    
+    if (pendingAuthAction === 'view') {
+        setIsSensitiveVisible(true);
+        setRevealTimeLeft(60); // 60s limit as per session requirement
+    } else if (pendingAuthAction === 'copy') {
+        performCopy();
+    }
+    setPendingAuthAction(null);
   };
 
-  // 3. Secure Copy with Auto-Clear
-  const handleSecureCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const performCopy = async () => {
     if (!card.fullNumber) return;
-
     try {
       await navigator.clipboard.writeText(card.fullNumber);
       setCopyStatus('copied');
@@ -136,6 +141,14 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     } catch (err) {
       console.error('Failed to copy', err);
     }
+  };
+
+  // 3. Secure Copy with Auth Check
+  const handleSecureCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Strict security: Always authenticate before copying to clipboard, even if currently visible
+    setPendingAuthAction('copy');
+    setShowAuthModal(true);
   };
 
   const formatFullNumber = (num: string) => {
@@ -160,7 +173,13 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
 
   return (
     <div className="relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-300 group text-left">
-      {showAuthModal && <SecurityAuth mode="verify" onSuccess={onAuthSuccess} onCancel={() => setShowAuthModal(false)} />}
+      {showAuthModal && (
+        <SecurityAuth 
+            mode="verify" 
+            onSuccess={onAuthSuccess} 
+            onCancel={() => { setShowAuthModal(false); setPendingAuthAction(null); }} 
+        />
+      )}
       <div className="absolute inset-0 flex justify-end items-stretch p-2">
         <button onClick={() => { setShowConfirm(true); setSwipeOffset(0); }} className="w-[110px] h-full bg-rose-600 text-white rounded-[2.5rem] flex flex-col items-center justify-center shadow-lg transition-transform active:scale-95">
           <Trash2 size={24} className="mb-1" />
@@ -215,15 +234,13 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
                   <div className="text-white/70 font-mono text-xl tracking-[0.2em] select-none pointer-events-none">
                     {formatFullNumber(card.fullNumber)}
                   </div>
-                  {isSensitiveVisible && (
-                    <button 
-                        onClick={handleSecureCopy}
-                        className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
-                        title="Copy securely (Auto-clears in 30s)"
-                    >
-                        {copyStatus === 'copied' ? <ClipboardCheck size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                    </button>
-                  )}
+                  <button 
+                      onClick={handleSecureCopy}
+                      className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
+                      title="Secure Copy (Requires Auth)"
+                  >
+                      {copyStatus === 'copied' ? <ClipboardCheck size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                  </button>
               </div>
             </div>
             <div className="flex justify-between items-end z-10 border-t border-white/10 pt-4">
