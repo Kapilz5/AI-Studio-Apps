@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
-import { fetchCardBenefits } from '../services/geminiService';
+import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
 import { getDecryptedApiKey } from '../utils/storage';
-import { Sparkles, Loader2, X, Camera, CheckCircle2, Hash, Lock, ShieldAlert, Zap, Search } from 'lucide-react';
+import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search } from 'lucide-react';
 import CardScanner from './CardScanner';
-import CardNameInput from './CardNameInput';
 
 interface CardFormProps {
   onSave: (data: CardFormData, benefits: Benefit[]) => void;
@@ -22,6 +21,9 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingBenefits, setPendingBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [validationMsg, setValidationMsg] = useState<string>('');
+  const [isTyping, setIsTyping] = useState(false);
   const [hasBeenSelected, setHasBeenSelected] = useState(false);
   
   const [formData, setFormData] = useState<CardFormData>({
@@ -70,6 +72,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     }
   }, [initialData]);
 
+  // QA FIX: Better normalized duplication detection
   const duplicateCard = useMemo(() => {
     const currentNum = getNormalizedNumber(formData.fullNumber);
     if (!currentNum || currentNum.length < 4) return null;
@@ -80,11 +83,52 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     });
   }, [formData.fullNumber, cards, initialData]);
 
+  useEffect(() => {
+    if (hasBeenSelected) {
+      setSuggestions([]);
+      setValidationMsg('');
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const trimmedName = formData.name.trim();
+      if (trimmedName.length >= 2) {
+        setIsTyping(true);
+        try {
+          const apiKey = await getDecryptedApiKey(masterKey);
+          if (!apiKey) {
+             setValidationMsg("AI Key missing. Check Settings.");
+             setIsTyping(false);
+             return;
+          }
+
+          const result = await getCardSuggestions(trimmedName, formData.cardCategory, apiKey);
+          setSuggestions(result.suggestions);
+          
+          if (result.suggestions.length === 0) {
+            setValidationMsg("AI could not verify this product. Enter benefits manually.");
+          } else {
+            setValidationMsg("Identify your specific card for accurate AI benefits:");
+          }
+        } catch (err) {
+          setValidationMsg("Search delayed. Proceeding with manual input.");
+        }
+        setIsTyping(false);
+      } else {
+        setSuggestions([]);
+        setValidationMsg('');
+      }
+    }, 2000); 
+    
+    return () => clearTimeout(timer);
+  }, [formData.name, formData.cardCategory, hasBeenSelected, masterKey]);
+
   const handleFetchBenefits = useCallback(async (nameOverride?: string) => {
     const cardName = (nameOverride || formData.name).trim();
     if (!cardName) return;
     
     setIsFetching(true);
+    setValidationMsg('');
     try {
       const apiKey = await getDecryptedApiKey(masterKey);
       if (!apiKey) {
@@ -103,11 +147,14 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       if (result.benefits.length > 0) {
         setPendingBenefits(result.benefits);
         setShowConfirmation(true);
+        setSuggestions([]);
       } else {
-        alert(result.error || 'AI check completed. No official perks found for this specific name.');
+        setValidationMsg(result.error || 'AI check completed. No official perks found for this specific name.');
+        setSuggestions([]);
       }
     } catch (error: any) {
-      alert(error.message || 'Service unreachable. Check internet connection.');
+      setValidationMsg(error.message || 'Service unreachable. Check internet connection.');
+      setSuggestions([]);
     } finally {
       setIsFetching(false);
     }
@@ -159,6 +206,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
     const cleanNum = getNormalizedNumber(formData.fullNumber);
     const last4 = cleanNum.length >= 4 ? cleanNum.slice(-4) : formData.last4;
+    // Normalize year to YYYY for storage
     const finalYear = formData.expiryYear < 100 ? 2000 + formData.expiryYear : formData.expiryYear;
 
     const benefitsWithIds: Benefit[] = fetchedBenefits.map((b, i) => ({
@@ -273,27 +321,58 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
             <div className="md:col-span-2 relative">
               <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Product Name</label>
               <div className="flex flex-col sm:flex-row gap-3">
-                <CardNameInput
-                  value={formData.name}
-                  onChange={val => { setFormData({ ...formData, name: val }); setHasBeenSelected(false); }}
-                  onSelect={val => { setFormData({ ...formData, name: val }); setHasBeenSelected(true); }}
-                  masterKey={masterKey}
-                  category={formData.cardCategory}
-                  placeholder={`e.g. HDFC Millennia`}
-                  className="flex-grow"
-                  showValidationMessage={true}
-                />
-                
+                <div className="relative flex-grow">
+                  <input
+                    type="text"
+                    placeholder={`e.g. HDFC Millennia`}
+                    required
+                    value={formData.name}
+                    onChange={e => {
+                      setFormData({ ...formData, name: e.target.value });
+                      setHasBeenSelected(false);
+                    }}
+                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold truncate pr-10`}
+                  />
+                  {isTyping && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 size={18} className="animate-spin text-blue-500" /></div>}
+                </div>
                 <button
                   type="button"
                   onClick={() => handleFetchBenefits()}
                   disabled={isFetching || !formData.name.trim()}
-                  className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-500/30 h-[60px]"
+                  className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-500/30"
                 >
                   {isFetching ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                   <span>Check AI</span>
                 </button>
               </div>
+
+              {((suggestions.length > 0 && !hasBeenSelected) || (validationMsg !== '')) && !isTyping && (
+                <div className={`mt-3 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 ${validationMsg.includes('correct') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100'}`}>
+                  <div className={`flex items-start gap-3 text-[10px] font-black uppercase tracking-widest mb-3 ${validationMsg.includes('correct') ? 'text-rose-600' : 'text-amber-700'}`}>
+                    {validationMsg.includes('correct') ? <AlertCircle size={14} /> : <Search size={14} />}
+                    <span>{validationMsg}</span>
+                  </div>
+                  {suggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {suggestions.map((s, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, name: s });
+                            setHasBeenSelected(true);
+                            setSuggestions([]);
+                            setValidationMsg('');
+                          }}
+                          className="text-[10px] font-black px-4 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-2 border-slate-100 dark:border-slate-700 rounded-xl hover:border-blue-500 transition-all active:scale-95"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="md:col-span-2">

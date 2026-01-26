@@ -439,8 +439,7 @@ export const getGeminiApiKeyEncrypted = async (): Promise<boolean> => {
 };
 
 export const saveEncryptedApiKey = async (apiKey: string, masterKey: Uint8Array) => {
-  const cleanKey = apiKey.trim(); // TRIM to avoid header issues later
-  if (!cleanKey) {
+  if (!apiKey) {
     await idb.delete(KEY_USER_API_KEY_ENC);
     return;
   }
@@ -449,7 +448,7 @@ export const saveEncryptedApiKey = async (apiKey: string, masterKey: Uint8Array)
   const cryptoKey = await window.crypto.subtle.importKey("raw", masterKey, "AES-GCM", false, ["encrypt"]);
   
   const encoder = new TextEncoder();
-  const encodedData = encoder.encode(cleanKey);
+  const encodedData = encoder.encode(apiKey);
   
   const encrypted = await window.crypto.subtle.encrypt(
     { name: "AES-GCM", iv }, 
