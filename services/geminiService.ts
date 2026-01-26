@@ -1,5 +1,5 @@
 
-import { Benefit, CardCategory, CreditCard } from "../types";
+import { Benefit, CardCategory, CreditCard, MultiAdvisorResult } from "../types";
 
 // Privacy Regex Patterns
 const PAN_REGEX = /\b(?:\d[ -]*?){13,19}\b/; // Matches 13-19 digit sequences (Card Numbers)
@@ -210,29 +210,37 @@ export interface AdvisorResult {
   similarBenefits: string[];
 }
 
+// Deprecated in favor of MultiAdvisor logic but kept for backward compatibility if needed
 export const analyzePortfolioRecommendation = async (newCardName: string, existingCards: CreditCard[], apiKey: string): Promise<AdvisorResult | null> => {
+  const result = await analyzeMultiPortfolioRecommendation([newCardName], existingCards, apiKey);
+  if (result && result.length > 0) {
+      const r = result[0];
+      // Map new format to old format for compatibility if any old components use this
+      return {
+          recommendation: r.decision as "Apply" | "Skip" | "Optional",
+          reasoning: r.reason,
+          score: r.decision === "APPLY" ? 90 : r.decision === "SKIP" ? 20 : 50,
+          newBenefits: r.newValue,
+          alreadyCovered: r.covered,
+          similarBenefits: []
+      };
+  }
+  return null;
+};
+
+export const analyzeMultiPortfolioRecommendation = async (targetCardNames: string[], existingCards: CreditCard[], apiKey: string): Promise<MultiAdvisorResult[] | null> => {
   try {
-    // 1. Strict Input Validation on New Card Name
-    validatePrivacy(newCardName);
+    // 1. Strict Input Validation on All Target Cards
+    targetCardNames.forEach(name => validatePrivacy(name));
 
     // 2. PRIVACY FILTER & DATA SANITIZATION for Existing Portfolio
-    // We must ensure no user-entered sensitive data from the vault leaks into the prompt.
-    // Explicitly exclude: fullNumber, cvv, expiryMonth, expiryYear.
     const safePortfolio = existingCards.reduce((acc, c) => {
-      // Check if the card name itself is sensitive (e.g. user saved "4111 1111 1111" as name)
-      // If so, we redact it or skip it to avoid leaking PANs.
       let safeName = c.name;
       if (isSensitive(safeName)) {
-         safeName = `Card ending in ${c.last4}`; // Redacted fallback
+         safeName = `Card ending in ${c.last4}`; 
       }
-
-      // Check waiver condition text
       const safeWaiver = isSensitive(c.waiverCondition) ? "" : c.waiverCondition;
-
-      // Check best offer text
       const safeOffer = (c.bestOffer && !isSensitive(c.bestOffer)) ? c.bestOffer : "None";
-
-      // Filter benefits that might contain sensitive info
       const safeBenefitsList = c.benefits
         .filter(b => !isSensitive(b.detail))
         .map(b => `${b.category}: ${b.detail}`);
@@ -241,52 +249,56 @@ export const analyzePortfolioRecommendation = async (newCardName: string, existi
         cardName: safeName,
         network: c.cardType,
         category: c.cardCategory,
-        
-        // Financials (Non-Sensitive)
         annualFee: c.annualFee,
         feeWaiverCondition: c.waiverTarget > 0 ? `Waived on spending ${c.waiverTarget}` : safeWaiver,
-
-        // Perks & Benefits
         welcomeBenefits: safeOffer,
         benefitsList: safeBenefitsList
       });
-
       return acc;
     }, [] as any[]);
 
     const prompt = {
       parts: [{
-        text: `You are a credit card expert advisor. The user has the following existing portfolio of cards: 
-        ${JSON.stringify(safePortfolio, null, 2)}
+        text: `You are a credit card expert advisor.
         
-        The user is considering applying for a NEW card: "${newCardName}".
+        User already owns these cards with benefits: ${JSON.stringify(safePortfolio)}.
+        User is considering applying for these target cards: ${JSON.stringify(targetCardNames)}.
+
+        For EACH target card, return:
+        1. Benefits already covered by existing cards
+        2. New benefits offered
+        3. Final decision: APPLY / SKIP / OPTIONAL / MANUAL
+        4. Short reason (max 2 lines)
+
+        Rules:
+        - "MANUAL" if card name is unrecognized or generic (e.g. "Visa Card").
+        - "APPLY" if it adds unique high value (e.g. Lounge if none exist, Forex if none exist).
+        - "SKIP" if benefits are largely redundant.
+
+        Strictly return a JSON ARRAY of objects with this schema:
+        [
+          {
+            "card": "Target Card Name",
+            "decision": "APPLY" | "SKIP" | "OPTIONAL" | "MANUAL",
+            "reason": "String",
+            "covered": ["List of redundant benefits"],
+            "newValue": ["List of unique benefits"]
+          }
+        ]
         
-        Task: Compare the new card against the existing portfolio.
-        Analyze if this new card adds UNIQUE value (e.g. better rewards rate, new category coverage like Lounge/Fuel/Forex, or better fee structure) or if it is redundant/overlapping.
-        
-        Strictly follow the JSON schema below.
-        
-        Schema:
-        {
-          "recommendation": "Apply" | "Skip" | "Optional",
-          "score": number (0-100, where >75 is Apply, <40 is Skip),
-          "reasoning": "Concise summary (max 2 sentences) on why.",
-          "newBenefits": ["List of unique benefits this card adds that are NOT in the portfolio"],
-          "alreadyCovered": ["List of benefits strictly redundant with existing cards"],
-          "similarBenefits": ["List of benefits that overlap but might have slight differences"]
-        }`
+        No markdown.`
       }]
     };
 
     const responseText = await callGeminiProxy(prompt, apiKey);
     const parsed = extractJSON(responseText || "");
     
-    if (parsed && parsed.recommendation) {
-      return parsed as AdvisorResult;
+    if (Array.isArray(parsed)) {
+      return parsed as MultiAdvisorResult[];
     }
-    return null;
+    return [];
   } catch (error) {
-    console.error("Gemini analyzePortfolioRecommendation Error:", error);
+    console.error("Gemini analyzeMultiPortfolioRecommendation Error:", error);
     throw error;
   }
 };
