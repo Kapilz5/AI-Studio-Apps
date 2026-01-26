@@ -123,7 +123,7 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
                     onChange={setInputName}
                     onSelect={handleSelectSuggestion}
                     masterKey={masterKey}
-                    category="Credit"
+                    // Removed category prop to default to global search
                     placeholder={targetCards.length > 0 ? UI_STRINGS.advisor.add_another : UI_STRINGS.advisor.input_placeholder}
                     className="flex-grow"
                     showValidationMessage={false}

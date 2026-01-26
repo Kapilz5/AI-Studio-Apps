@@ -134,16 +134,19 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
   }
 };
 
-export const getCardSuggestions = async (userInput: string, category: CardCategory, apiKey: string): Promise<{ suggestions: string[], error?: string }> => {
+export const getCardSuggestions = async (userInput: string, category: string | undefined, apiKey: string): Promise<{ suggestions: string[], error?: string }> => {
   if (!userInput || userInput.trim().length < 2) return { suggestions: [] };
   
   try {
     // Client-side Privacy Check
     validatePrivacy(userInput);
 
+    // If category is provided and valid, use it. Otherwise, search for Credit or Debit.
+    const searchType = (category === 'Credit' || category === 'Debit') ? category : 'Credit or Debit';
+
     const prompt = {
       parts: [{
-        text: `Suggest up to 5 popular Indian ${category} card names starting with or similar to: "${userInput}".
+        text: `Suggest up to 5 popular Indian ${searchType} card names starting with or similar to: "${userInput}".
         Return ONLY valid JSON.
         
         Format: { "suggestions": ["Name 1", "Name 2"] }.`

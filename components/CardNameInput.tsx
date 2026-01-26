@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Search, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { getCardSuggestions } from '../services/geminiService';
 import { getDecryptedApiKey } from '../utils/storage';
-import { CardCategory } from '../types';
 
 interface CardNameInputProps {
   value: string;
   onChange: (val: string) => void;
   onSelect: (val: string) => void;
   masterKey: Uint8Array;
-  category?: CardCategory;
+  category?: string;
   placeholder?: string;
   className?: string;
   onValidationChange?: (msg: string) => void;
@@ -24,7 +23,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
   onChange,
   onSelect,
   masterKey,
-  category = 'Credit',
+  category,
   placeholder,
   className = '',
   onValidationChange,
@@ -69,8 +68,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
             return;
           }
 
-          // FIX: Cast category to CardCategory to avoid type mismatch error
-          const result = await getCardSuggestions(trimmedName, category as CardCategory, apiKey);
+          const result = await getCardSuggestions(trimmedName, category, apiKey);
           setSuggestions(result.suggestions);
           
           if (showValidationMessage) {
