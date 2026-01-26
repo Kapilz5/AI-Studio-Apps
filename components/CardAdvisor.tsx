@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { CreditCard, MultiAdvisorResult, AdvisorDecision } from '../types';
 import { analyzeMultiPortfolioRecommendation } from '../services/geminiService';
 import { getDecryptedApiKey } from '../utils/storage';
-import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, MinusCircle, BrainCircuit, X, Plus, BadgeHelp } from 'lucide-react';
+import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, BrainCircuit, X, Plus, BadgeHelp } from 'lucide-react';
 import { UI_STRINGS } from '../locales/en';
 import CardNameInput from './CardNameInput';
 
@@ -118,7 +118,7 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
                  ))}
              </div>
 
-             <div className="flex gap-2 items-start">
+             <div className="flex gap-2 items-start relative z-20">
                 <CardNameInput
                     value={inputName}
                     onChange={setInputName}
@@ -133,7 +133,7 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
                 <button 
                     onClick={() => handleAddInput()}
                     disabled={!inputName.trim()}
-                    className="p-4 bg-slate-100 dark:bg-slate-800 rounded-[1.5rem] text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50 h-[60px]"
+                    className="p-4 bg-slate-100 dark:bg-slate-800 rounded-[1.5rem] text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50 h-[60px] shrink-0"
                 >
                     <Plus size={24} />
                 </button>

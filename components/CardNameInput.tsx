@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Search, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { getCardSuggestions } from '../services/geminiService';
@@ -88,7 +87,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
         setSuggestions([]);
         setValidationMsg('');
       }
-    }, 2000); 
+    }, 800); // Reduced to 800ms for more immediate feedback while still acting as a debounce
     
     return () => clearTimeout(timer);
   }, [value, category, hasBeenSelected, masterKey, showValidationMessage]);
@@ -105,6 +104,12 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
     setValidationMsg('');
   };
 
+  // Determine if dropdown should show
+  const shouldShowDropdown = !isTyping && (
+    (suggestions.length > 0 && !hasBeenSelected) || 
+    (showValidationMessage && validationMsg !== '')
+  );
+
   return (
     <div className={`relative ${className}`}>
         <input
@@ -119,7 +124,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
         {isTyping && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 size={18} className="animate-spin text-blue-500" /></div>}
         {rightElement}
 
-        {((suggestions.length > 0 && !hasBeenSelected) || (showValidationMessage && validationMsg !== '')) && !isTyping && (
+        {shouldShowDropdown && (
             <div className={`absolute top-full left-0 right-0 mt-3 z-30 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 shadow-xl ${validationMsg.includes('correct') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
                 {showValidationMessage && validationMsg && (
                     <div className={`flex items-start gap-3 text-[10px] font-black uppercase tracking-widest mb-3 ${validationMsg.includes('correct') ? 'text-rose-600' : 'text-slate-400'}`}>
