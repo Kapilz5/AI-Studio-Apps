@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { CreditCard, MultiAdvisorResult, AdvisorDecision } from '../types';
-import { analyzeMultiPortfolioRecommendation, getCardSuggestions } from '../services/geminiService';
+import { analyzeMultiPortfolioRecommendation } from '../services/geminiService';
 import { getDecryptedApiKey } from '../utils/storage';
-import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, Search, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, MinusCircle, BrainCircuit, Sparkles, X, Plus, BadgeHelp } from 'lucide-react';
+import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, BrainCircuit, X, Plus, BadgeHelp, Play } from 'lucide-react';
 import { UI_STRINGS } from '../locales/en';
+import CardNameInput from './CardNameInput';
 
 interface CardAdvisorProps {
   cards: CreditCard[];
@@ -18,48 +19,22 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<MultiAdvisorResult[]>([]);
   const [error, setError] = useState('');
+  const [decryptedApiKey, setDecryptedApiKey] = useState<string | undefined>(undefined);
 
-  // Autocomplete State
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [hasBeenSelected, setHasBeenSelected] = useState(false);
-
+  // Decrypt API key on mount for suggestions
   useEffect(() => {
-    if (hasBeenSelected || !inputName.trim()) {
-        setSuggestions([]);
-        return;
-    }
-
-    const timer = setTimeout(async () => {
-        if (inputName.trim().length < 3) return;
-
-        setIsTyping(true);
-        try {
-            // Local lookup now - no API key needed
-            const res = await getCardSuggestions(inputName, 'Credit');
-            setSuggestions(res.suggestions);
-        } catch (e) {
-            console.debug("Suggestion fetch failed", e);
-        } finally {
-            setIsTyping(false);
-        }
-    }, 200); // Faster debounce since it's local
-
-    return () => clearTimeout(timer);
-  }, [inputName, hasBeenSelected]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInputName(e.target.value);
-      setHasBeenSelected(false);
-  };
+    const loadKey = async () => {
+        const key = await getDecryptedApiKey(masterKey);
+        setDecryptedApiKey(key);
+    };
+    loadKey();
+  }, [masterKey]);
 
   const handleSelectSuggestion = (name: string) => {
-      if (!targetCards.includes(name)) {
+      if (name && !targetCards.includes(name)) {
         setTargetCards([...targetCards, name]);
       }
       setInputName('');
-      setSuggestions([]);
-      setHasBeenSelected(true);
   };
 
   const handleAddInput = (e?: React.FormEvent) => {
@@ -67,7 +42,6 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
     if (inputName.trim() && !targetCards.includes(inputName.trim())) {
       setTargetCards([...targetCards, inputName.trim()]);
       setInputName('');
-      setSuggestions([]);
     }
   };
 
@@ -76,28 +50,28 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
   };
 
   const handleAnalyze = async () => {
-    // If user typed something but didn't hit enter, add it to list implicitly
+    // Include the text in input if user hasn't hit enter yet
     const cardsToAnalyze = [...targetCards];
     if (inputName.trim() && !targetCards.includes(inputName.trim())) {
         cardsToAnalyze.push(inputName.trim());
-        setTargetCards(cardsToAnalyze);
-        setInputName('');
     }
 
     if (cardsToAnalyze.length === 0) return;
 
     setLoading(true);
     setError('');
-    setResults([]);
-    setSuggestions([]);
+    // Keep previous results visible if we want, or clear them. Clearing feels more responsive to "Fresh Analysis"
+    setResults([]); 
 
     try {
-      const apiKey = await getDecryptedApiKey(masterKey);
+      const apiKey = decryptedApiKey || await getDecryptedApiKey(masterKey);
       if (!apiKey) {
         if (onOpenSettings) {
             if (window.confirm("Gemini API Key is missing. Configure it in Settings to use AI features?")) {
                 onOpenSettings();
             }
+        } else {
+            setError("API Key missing. Please configure in settings.");
         }
         setLoading(false);
         return;
@@ -106,6 +80,9 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
       const res = await analyzeMultiPortfolioRecommendation(cardsToAnalyze, cards, apiKey);
       if (res && res.length > 0) {
         setResults(res);
+        // Clear input state only on success
+        setTargetCards([]);
+        setInputName('');
       } else {
         setError(UI_STRINGS.advisor.analysis_failed);
       }
@@ -118,19 +95,19 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
 
   const getDecisionIcon = (d: AdvisorDecision) => {
     switch(d) {
-        case 'APPLY': return <ThumbsUp size={24} />;
-        case 'SKIP': return <ThumbsDown size={24} />;
-        case 'MANUAL': return <BadgeHelp size={24} />;
-        default: return <Scale size={24} />;
+        case 'APPLY': return <ThumbsUp size={20} />;
+        case 'SKIP': return <ThumbsDown size={20} />;
+        case 'MANUAL': return <BadgeHelp size={20} />;
+        default: return <Scale size={20} />;
     }
   };
 
-  const getDecisionColor = (d: AdvisorDecision) => {
+  const getDecisionStyles = (d: AdvisorDecision) => {
     switch(d) {
-        case 'APPLY': return 'bg-emerald-500 text-white shadow-emerald-500/30';
-        case 'SKIP': return 'bg-rose-500 text-white shadow-rose-500/30';
-        case 'MANUAL': return 'bg-slate-500 text-white shadow-slate-500/30';
-        default: return 'bg-amber-500 text-white shadow-amber-500/30';
+        case 'APPLY': return 'bg-emerald-500 text-white shadow-emerald-500/30 ring-emerald-500/20';
+        case 'SKIP': return 'bg-rose-500 text-white shadow-rose-500/30 ring-rose-500/20';
+        case 'MANUAL': return 'bg-slate-500 text-white shadow-slate-500/30 ring-slate-500/20';
+        default: return 'bg-amber-500 text-white shadow-amber-500/30 ring-amber-500/20';
     }
   };
 
@@ -141,63 +118,40 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
         <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">{UI_STRINGS.advisor.subtitle}</p>
       </div>
 
+      {/* Input Section */}
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 space-y-6">
-          <div className="space-y-3">
+          <div className="space-y-4">
              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{UI_STRINGS.advisor.input_label}</label>
              
-             {/* Chips */}
-             <div className="flex flex-wrap gap-2 min-h-[32px]">
-                 {targetCards.map(card => (
-                    <div key={card} className="animate-in zoom-in duration-200 flex items-center gap-2 pl-4 pr-2 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-200 border border-blue-100 dark:border-blue-900/50">
-                        <span className="text-xs font-black">{card}</span>
-                        <button onClick={() => removeTargetCard(card)} className="p-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full transition-colors"><X size={14} /></button>
-                    </div>
-                 ))}
-             </div>
-
-             <div className="relative z-20">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        value={inputName}
-                        onChange={handleInputChange}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddInput(e)}
-                        placeholder={targetCards.length > 0 ? UI_STRINGS.advisor.add_another : UI_STRINGS.advisor.input_placeholder}
-                        className="flex-grow pl-14 pr-12 py-5 rounded-[2rem] bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-500 outline-none text-base font-bold text-slate-900 dark:text-white transition-all"
-                    />
-                    <button 
-                        onClick={() => handleAddInput()}
-                        disabled={!inputName.trim()}
-                        className="p-4 bg-slate-100 dark:bg-slate-800 rounded-[1.5rem] text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50"
-                    >
-                        <Plus size={24} />
-                    </button>
+             {/* Target Chips */}
+             {targetCards.length > 0 && (
+                <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2">
+                    {targetCards.map(card => (
+                        <div key={card} className="flex items-center gap-2 pl-4 pr-2 py-2.5 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-200 border border-blue-100 dark:border-blue-900/50 shadow-sm transition-all hover:scale-105">
+                            <span className="text-xs font-black">{card}</span>
+                            <button onClick={() => removeTargetCard(card)} className="p-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full transition-colors"><X size={14} /></button>
+                        </div>
+                    ))}
                 </div>
-                
-                {isTyping && <div className="absolute right-20 top-1/2 -translate-y-1/2"><Loader2 size={20} className="animate-spin text-blue-500" /></div>}
+             )}
 
-                {/* Autocomplete Dropdown */}
-                {suggestions.length > 0 && !hasBeenSelected && !isTyping && (
-                  <div className="absolute top-full left-0 right-16 mt-3 p-4 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-3xl shadow-2xl animate-in slide-in-from-top-2 z-50">
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                      <Sparkles size={12} className="text-blue-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Suggestions</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {suggestions.map((s, idx) => (
-                            <button
-                                key={idx}
-                                type="button"
-                                onClick={() => handleSelectSuggestion(s)}
-                                className="text-xs font-bold px-4 py-2.5 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 text-left"
-                            >
-                                {s}
-                            </button>
-                        ))}
-                    </div>
-                  </div>
-                )}
+             <div className="flex gap-2">
+                <CardNameInput
+                    value={inputName}
+                    onChange={setInputName}
+                    onSelect={handleSelectSuggestion}
+                    apiKey={decryptedApiKey}
+                    placeholder={targetCards.length > 0 ? UI_STRINGS.advisor.add_another : UI_STRINGS.advisor.input_placeholder}
+                    className="flex-grow"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddInput(e)}
+                />
+                <button 
+                    onClick={() => handleAddInput()}
+                    disabled={!inputName.trim()}
+                    className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50 active:scale-95"
+                >
+                    <Plus size={24} />
+                </button>
              </div>
           </div>
           
@@ -211,92 +165,111 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
           <button 
             onClick={handleAnalyze} 
             disabled={loading || (targetCards.length === 0 && !inputName.trim())}
-            className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50"
+            className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
           >
-            {loading ? <Loader2 size={20} className="animate-spin" /> : <Lightbulb size={20} />}
+            {loading ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} fill="currentColor" />}
             <span>{loading ? UI_STRINGS.advisor.analyzing : UI_STRINGS.advisor.analyze_btn} {targetCards.length > 0 && `(${targetCards.length + (inputName.trim() ? 1 : 0)})`}</span>
           </button>
       </div>
 
+      {/* Error State */}
       {error && (
-        <div className="p-6 bg-rose-50 dark:bg-rose-900/10 text-rose-600 rounded-[2rem] text-center font-bold border border-rose-100 dark:border-rose-900/30 animate-in fade-in slide-in-from-bottom-2">
-          {error}
+        <div className="p-6 bg-rose-50 dark:bg-rose-900/10 text-rose-600 dark:text-rose-400 rounded-[2rem] text-center font-bold border border-rose-100 dark:border-rose-900/30 animate-in fade-in slide-in-from-bottom-2 flex flex-col items-center gap-3 shadow-lg">
+          <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm"><AlertTriangle size={24} /></div>
+          <p>{error}</p>
+          <button onClick={handleAnalyze} className="text-xs font-black uppercase tracking-widest underline hover:text-rose-700 dark:hover:text-rose-300">Retry Analysis</button>
         </div>
       )}
 
+      {/* Results Section */}
       {results.length > 0 && (
-        <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
+        <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-700">
+            <div className="flex items-center gap-2 px-4 opacity-50">
+                <Lightbulb size={16} />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Analysis Results</span>
+            </div>
+
             {results.map((result, idx) => (
-                <div key={idx} className="bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-100 dark:border-slate-800">
-                     {/* Header with Decision */}
-                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <h3 className="text-xl font-black text-slate-900 dark:text-white truncate">{result.card}</h3>
-                        <div className={`px-5 py-2.5 rounded-2xl flex items-center gap-2 self-start md:self-auto ${getDecisionColor(result.decision)}`}>
+                <div key={idx} className="bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 group">
+                     {/* Header */}
+                     <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-transparent to-slate-50 dark:to-slate-800/50 rounded-bl-full -z-0 opacity-50" />
+                        
+                        <div className="relative z-10">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Target Card</span>
+                            <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-none tracking-tight">{result.card}</h3>
+                        </div>
+
+                        <div className={`relative z-10 px-6 py-3 rounded-2xl flex items-center gap-3 self-start md:self-auto ring-4 ring-opacity-50 ${getDecisionStyles(result.decision)}`}>
                             {getDecisionIcon(result.decision)}
-                            <span className="text-xs font-black uppercase tracking-widest">{result.decision}</span>
+                            <span className="text-sm font-black uppercase tracking-widest">{result.decision}</span>
                         </div>
                      </div>
 
                      {/* Reasoning */}
-                     <div className="p-6 bg-slate-50/50 dark:bg-slate-800/30">
-                        <div className="flex items-start gap-3">
-                            <div className="mt-1 p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg shrink-0">
-                                <BrainCircuit size={16} />
+                     <div className="p-8 bg-slate-50/50 dark:bg-slate-800/20 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-start gap-4">
+                            <div className="mt-1 p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl shrink-0">
+                                <BrainCircuit size={20} />
                             </div>
-                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 leading-relaxed">{result.reason}</p>
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AI Reasoning</p>
+                                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{result.reason}</p>
+                            </div>
                         </div>
                      </div>
 
-                     {/* Grid of Benefits */}
+                     {/* Benefits Grid */}
                      {result.decision !== 'MANUAL' ? (
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
                              {/* New Value */}
-                             <div className="space-y-3">
+                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                                    <PlusCircle size={16} />
+                                    <PlusCircle size={18} />
                                     <h4 className="font-black uppercase text-[10px] tracking-[0.2em]">{UI_STRINGS.advisor.section_new}</h4>
                                 </div>
-                                {result.newValue.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2">
+                                {result.newValue && result.newValue.length > 0 ? (
+                                    <div className="space-y-2">
                                         {result.newValue.map((val, i) => (
-                                            <div key={i} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
-                                                {val}
+                                            <div key={i} className="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                                                <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                                <span className="text-xs font-bold text-emerald-900 dark:text-emerald-100 leading-tight">{val}</span>
                                             </div>
                                         ))}
                                     </div>
-                                ) : <p className="text-xs text-slate-400 italic">No unique benefits found.</p>}
+                                ) : <p className="text-xs text-slate-400 italic px-2">No unique benefits found.</p>}
                              </div>
 
                              {/* Covered */}
-                             <div className="space-y-3">
+                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 text-slate-400">
-                                    <CheckCircle2 size={16} />
+                                    <CheckCircle2 size={18} />
                                     <h4 className="font-black uppercase text-[10px] tracking-[0.2em]">{UI_STRINGS.advisor.section_covered}</h4>
                                 </div>
-                                {result.covered.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2 opacity-70">
+                                {result.covered && result.covered.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2 opacity-60">
                                         {result.covered.map((val, i) => (
-                                            <div key={i} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-bold">
+                                            <div key={i} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-bold">
                                                 {val}
                                             </div>
                                         ))}
                                     </div>
-                                ) : <p className="text-xs text-slate-400 italic">No overlaps found.</p>}
+                                ) : <p className="text-xs text-slate-400 italic px-2">No significant overlaps.</p>}
                              </div>
                         </div>
                      ) : (
-                        <div className="p-6 text-center">
+                        <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/20">
                             <p className="text-sm font-bold text-slate-500 mb-4">{UI_STRINGS.advisor.ai_verify_failed}</p>
-                            <button className="text-xs font-black uppercase tracking-widest text-blue-600 hover:underline">Enter Manually in Wallet</button>
+                            <button onClick={() => removeTargetCard(result.card)} className="text-xs font-black uppercase tracking-widest text-rose-500 hover:underline">Remove from analysis</button>
                         </div>
                      )}
                 </div>
             ))}
             
-            <div className="flex justify-center pt-8">
-                 <button onClick={() => { setTargetCards([]); setResults([]); setInputName(''); }} className="text-slate-400 hover:text-blue-500 font-bold text-sm flex items-center gap-2 transition-colors">
+            <div className="flex justify-center pt-8 pb-12">
+                 <button onClick={() => { setTargetCards([]); setResults([]); setInputName(''); }} className="group px-8 py-4 bg-slate-100 dark:bg-slate-800 rounded-[2rem] text-slate-500 dark:text-slate-300 font-black text-xs uppercase tracking-widest flex items-center gap-3 transition-all hover:bg-slate-200 dark:hover:bg-slate-700">
                     <span>Start Fresh Comparison</span>
-                    <ArrowRight size={16} />
+                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                  </button>
             </div>
         </div>

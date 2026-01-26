@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 
 // Simple in-memory rate limiting store
@@ -49,7 +48,7 @@ const containsSensitiveData = (obj: any): boolean => {
 export default async function handler(req: any, res: any) {
   // CORS configuration
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-user-gemini-key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
 
   // Handle preflight requests
@@ -102,35 +101,36 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // REQUIRE Client-provided API Key from Headers
-    const apiKeyHeader = req.headers['x-user-gemini-key'];
-    const rawApiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
-    
-    // Strict enforcement: Do NOT fallback to process.env
-    // Validate format: Must be present, string, non-empty
-    if (!rawApiKey || typeof rawApiKey !== 'string' || rawApiKey.trim().length === 0) {
-      // Explicit error message indicating user key is required
-      res.status(400).json({ error: "User Gemini API Key required. Please configure it in the app Settings." });
-      return;
-    }
-
-    // FIX: Decode API Key as it is encoded on client to prevent header char errors
-    let apiKey: string;
-    try {
-        apiKey = decodeURIComponent(rawApiKey).trim();
-    } catch (e) {
-        // Fallback if not encoded for some reason
-        apiKey = rawApiKey.trim();
-    }
-
     // Parse the request body
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { prompt } = body;
+    const { prompt, userKeyB64 } = body;
 
     // Validate existence but allow objects (for structured parts/images) or strings
     if (!prompt) {
       res.status(400).json({ error: 'Invalid request body. Missing "prompt" field.' });
       return;
+    }
+
+    // Decode User API Key from Body (Base64 -> UTF-8)
+    // This prevents header character encoding issues
+    let apiKey: string;
+    if (!userKeyB64 || typeof userKeyB64 !== 'string') {
+        res.status(400).json({ error: "User Gemini API Key required (encoded in body)." });
+        return;
+    }
+
+    try {
+        // Fix: Use global atob which is available in Node.js 16+ and Browsers
+        // Buffer types are missing in this environment
+        apiKey = atob(userKeyB64).trim();
+    } catch (e) {
+        res.status(400).json({ error: "Invalid API Key encoding." });
+        return;
+    }
+
+    if (!apiKey) {
+        res.status(400).json({ error: "Decoded API Key is empty." });
+        return;
     }
 
     // STRICT PRIVACY CHECK (Server-Side)

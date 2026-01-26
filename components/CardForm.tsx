@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
-import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
+import { fetchCardBenefits } from '../services/geminiService';
 import { getDecryptedApiKey } from '../utils/storage';
-import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search } from 'lucide-react';
+import { Sparkles, Loader2, X, Camera, CheckCircle2, Hash, Lock, ShieldAlert, Zap, Search } from 'lucide-react';
 import CardScanner from './CardScanner';
+import CardNameInput from './CardNameInput';
 
 interface CardFormProps {
   onSave: (data: CardFormData, benefits: Benefit[]) => void;
@@ -22,10 +22,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingBenefits, setPendingBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [validationMsg, setValidationMsg] = useState<string>('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [hasBeenSelected, setHasBeenSelected] = useState(false);
+  const [decryptedApiKey, setDecryptedApiKey] = useState<string | undefined>(undefined);
   
   const [formData, setFormData] = useState<CardFormData>({
     name: '',
@@ -49,6 +46,15 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   const [fetchedBenefits, setFetchedBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
   const benefitSectionRef = useRef<HTMLDivElement>(null);
 
+  // Decrypt API key on mount for suggestions
+  useEffect(() => {
+    const loadKey = async () => {
+        const key = await getDecryptedApiKey(masterKey);
+        setDecryptedApiKey(key);
+    };
+    loadKey();
+  }, [masterKey]);
+
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -69,7 +75,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         bestOffer: initialData.bestOffer || ''
       });
       setFetchedBenefits(initialData.benefits);
-      setHasBeenSelected(true);
     }
   }, [initialData]);
 
@@ -83,48 +88,13 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     });
   }, [formData.fullNumber, cards, initialData]);
 
-  useEffect(() => {
-    if (hasBeenSelected) {
-      setSuggestions([]);
-      setValidationMsg('');
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      const trimmedName = formData.name.trim();
-      if (trimmedName.length >= 2) {
-        setIsTyping(true);
-        try {
-          // Local lookup now - no API key needed
-          const result = await getCardSuggestions(trimmedName, formData.cardCategory);
-          setSuggestions(result.suggestions);
-          
-          if (result.suggestions.length === 0) {
-            setValidationMsg("AI could not verify this product. Enter benefits manually.");
-          } else {
-            setValidationMsg("Identify your specific card for accurate AI benefits:");
-          }
-        } catch (err) {
-          setValidationMsg("Search delayed. Proceeding with manual input.");
-        }
-        setIsTyping(false);
-      } else {
-        setSuggestions([]);
-        setValidationMsg('');
-      }
-    }, 200); // Faster debounce since it's local
-    
-    return () => clearTimeout(timer);
-  }, [formData.name, formData.cardCategory, hasBeenSelected]);
-
   const handleFetchBenefits = useCallback(async (nameOverride?: string) => {
     const cardName = (nameOverride || formData.name).trim();
     if (!cardName) return;
     
     setIsFetching(true);
-    setValidationMsg('');
     try {
-      const apiKey = await getDecryptedApiKey(masterKey);
+      const apiKey = decryptedApiKey || await getDecryptedApiKey(masterKey);
       if (!apiKey) {
         if (onOpenSettings) {
              if (window.confirm("Gemini API Key is missing. Configure it in Settings to use AI features?")) {
@@ -137,22 +107,20 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         return;
       }
 
+      // FIX: Pass apiKey as the 3rd argument
       const result = await fetchCardBenefits(cardName, formData.cardCategory, apiKey);
       if (result.benefits.length > 0) {
         setPendingBenefits(result.benefits);
         setShowConfirmation(true);
-        setSuggestions([]);
       } else {
-        setValidationMsg(result.error || 'AI check completed. No official perks found for this specific name.');
-        setSuggestions([]);
+        alert(result.error || 'AI check completed. No official perks found for this specific name.');
       }
     } catch (error: any) {
-      setValidationMsg(error.message || 'Service unreachable. Check internet connection.');
-      setSuggestions([]);
+      alert(error.message || 'Service unreachable. Check internet connection.');
     } finally {
       setIsFetching(false);
     }
-  }, [formData.name, formData.cardCategory, masterKey, onOpenSettings]);
+  }, [formData.name, formData.cardCategory, masterKey, onOpenSettings, decryptedApiKey]);
 
   const confirmBenefits = () => {
     setFetchedBenefits(pendingBenefits);
@@ -184,7 +152,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       waiverTarget: scannedData.suggestedWaiverTarget || prev.waiverTarget,
     }));
     setShowScanner(false);
-    setHasBeenSelected(true);
     if (scannedData.name) {
       setTimeout(() => handleFetchBenefits(scannedData.name), 100);
     }
@@ -200,7 +167,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
 
     const cleanNum = getNormalizedNumber(formData.fullNumber);
     const last4 = cleanNum.length >= 4 ? cleanNum.slice(-4) : formData.last4;
-    // Normalize year to YYYY for storage
     const finalYear = formData.expiryYear < 100 ? 2000 + formData.expiryYear : formData.expiryYear;
 
     const benefitsWithIds: Benefit[] = fetchedBenefits.map((b, i) => ({
@@ -293,7 +259,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   type="button"
                   onClick={() => {
                     setFormData({ ...formData, cardCategory: 'Credit' });
-                    setHasBeenSelected(false);
                   }}
                   className={`py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition-all ${formData.cardCategory === 'Credit' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500'}`}
                  >
@@ -303,7 +268,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   type="button"
                   onClick={() => {
                     setFormData({ ...formData, cardCategory: 'Debit' });
-                    setHasBeenSelected(false);
                   }}
                   className={`py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 transition-all ${formData.cardCategory === 'Debit' ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500'}`}
                  >
@@ -315,58 +279,25 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
             <div className="md:col-span-2 relative">
               <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Product Name</label>
               <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-grow">
-                  <input
-                    type="text"
-                    placeholder={`e.g. HDFC Millennia`}
-                    required
-                    value={formData.name}
-                    onChange={e => {
-                      setFormData({ ...formData, name: e.target.value });
-                      setHasBeenSelected(false);
-                    }}
-                    className={`w-full px-5 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white ${validationMsg.includes('correct') ? 'border-rose-400' : 'border-slate-100 dark:border-slate-700'} focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold truncate pr-10`}
-                  />
-                  {isTyping && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 size={18} className="animate-spin text-blue-500" /></div>}
-                </div>
+                <CardNameInput
+                  value={formData.name}
+                  onChange={(val) => setFormData({ ...formData, name: val })}
+                  onSelect={(val) => setFormData({ ...formData, name: val })}
+                  apiKey={decryptedApiKey}
+                  placeholder={`e.g. HDFC Millennia`}
+                  className="flex-grow"
+                />
+                
                 <button
                   type="button"
                   onClick={() => handleFetchBenefits()}
                   disabled={isFetching || !formData.name.trim()}
-                  className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-500/30"
+                  className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-500/30 h-[60px]"
                 >
                   {isFetching ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                   <span>Check AI</span>
                 </button>
               </div>
-
-              {((suggestions.length > 0 && !hasBeenSelected) || (validationMsg !== '')) && !isTyping && (
-                <div className={`mt-3 rounded-2xl p-5 border-2 animate-in slide-in-from-top-2 ${validationMsg.includes('correct') ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100'}`}>
-                  <div className={`flex items-start gap-3 text-[10px] font-black uppercase tracking-widest mb-3 ${validationMsg.includes('correct') ? 'text-rose-600' : 'text-amber-700'}`}>
-                    {validationMsg.includes('correct') ? <AlertCircle size={14} /> : <Search size={14} />}
-                    <span>{validationMsg}</span>
-                  </div>
-                  {suggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {suggestions.map((s, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setFormData({ ...formData, name: s });
-                            setHasBeenSelected(true);
-                            setSuggestions([]);
-                            setValidationMsg('');
-                          }}
-                          className="text-[10px] font-black px-4 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-2 border-slate-100 dark:border-slate-700 rounded-xl hover:border-blue-500 transition-all active:scale-95"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="md:col-span-2">
@@ -427,8 +358,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   value={formData.expiryYear}
                   onChange={e => {
                     const val = Number(e.target.value);
-                    const fallback = (new Date().getFullYear() + 3) % 100;
-                    setFormData({ ...formData, expiryYear: isNaN(val) ? fallback : val });
+                    setFormData({ ...formData, expiryYear: isNaN(val) ? 2028 : val });
                   }}
                   className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
                 />

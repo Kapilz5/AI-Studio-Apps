@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
+import { getDecryptedApiKey } from '../utils/storage';
 import { Sparkles, Loader2, Plus, X, Camera, Save, CheckCircle2, AlertCircle, ChevronDown, Check, Hash, Lock, ShieldAlert, Zap, Search } from 'lucide-react';
 import CardScanner from './CardScanner';
 
@@ -9,14 +9,15 @@ interface CardFormProps {
   onSave: (data: CardFormData, benefits: Benefit[]) => void;
   onCancel: () => void;
   initialData?: CreditCard;
-  // FIX: Changed from tuple [CreditCard] to array CreditCard[] to fix type inference errors
-  cards: CreditCard[]; // Injected via prop
+  cards: CreditCard[];
+  masterKey: Uint8Array;
+  onOpenSettings?: () => void;
 }
 
 // Normalized duplication check helper
 const getNormalizedNumber = (num: string) => num.replace(/[\s-]/g, '');
 
-const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, cards = [] }) => {
+const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, cards = [], masterKey, onOpenSettings }) => {
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingBenefits, setPendingBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
@@ -24,6 +25,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   const [validationMsg, setValidationMsg] = useState<string>('');
   const [isTyping, setIsTyping] = useState(false);
   const [hasBeenSelected, setHasBeenSelected] = useState(false);
+  const [decryptedApiKey, setDecryptedApiKey] = useState<string | undefined>(undefined);
   
   const [formData, setFormData] = useState<CardFormData>({
     name: '',
@@ -46,6 +48,15 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   const [isFetching, setIsFetching] = useState(false);
   const [fetchedBenefits, setFetchedBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
   const benefitSectionRef = useRef<HTMLDivElement>(null);
+
+  // Decrypt API key on mount
+  useEffect(() => {
+    const loadKey = async () => {
+        const key = await getDecryptedApiKey(masterKey);
+        setDecryptedApiKey(key);
+    };
+    loadKey();
+  }, [masterKey]);
 
   useEffect(() => {
     if (initialData) {
@@ -71,12 +82,10 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     }
   }, [initialData]);
 
-  // QA FIX: Better normalized duplication detection
   const duplicateCard = useMemo(() => {
     const currentNum = getNormalizedNumber(formData.fullNumber);
     if (!currentNum || currentNum.length < 4) return null;
     
-    // FIX: cards is now correctly typed as CreditCard[], resolving 'never' type errors on lines 79-80
     return cards.find(c => {
       if (initialData && c.id === initialData.id) return false;
       return getNormalizedNumber(c.fullNumber) === currentNum;
@@ -95,7 +104,12 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       if (trimmedName.length >= 2) {
         setIsTyping(true);
         try {
-          const result = await getCardSuggestions(trimmedName, formData.cardCategory);
+          if (!decryptedApiKey) {
+            setValidationMsg("API Key missing. Configure in settings.");
+            setIsTyping(false);
+            return;
+          }
+          const result = await getCardSuggestions(trimmedName, decryptedApiKey);
           setSuggestions(result.suggestions);
           
           if (result.suggestions.length === 0) {
@@ -114,7 +128,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     }, 2000); 
     
     return () => clearTimeout(timer);
-  }, [formData.name, formData.cardCategory, hasBeenSelected]);
+  }, [formData.name, formData.cardCategory, hasBeenSelected, decryptedApiKey]);
 
   const handleFetchBenefits = useCallback(async (nameOverride?: string) => {
     const cardName = (nameOverride || formData.name).trim();
@@ -123,7 +137,20 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     setIsFetching(true);
     setValidationMsg('');
     try {
-      const result = await fetchCardBenefits(cardName, formData.cardCategory);
+      const apiKey = decryptedApiKey || await getDecryptedApiKey(masterKey);
+      if (!apiKey) {
+        if (onOpenSettings) {
+             if (window.confirm("Gemini API Key is missing. Configure it in Settings to use AI features?")) {
+                 onOpenSettings();
+             }
+        } else {
+             alert("Please set your Gemini API Key in Settings to use AI features.");
+        }
+        setIsFetching(false);
+        return;
+      }
+
+      const result = await fetchCardBenefits(cardName, formData.cardCategory, apiKey);
       if (result.benefits.length > 0) {
         setPendingBenefits(result.benefits);
         setShowConfirmation(true);
@@ -138,7 +165,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     } finally {
       setIsFetching(false);
     }
-  }, [formData.name, formData.cardCategory]);
+  }, [formData.name, formData.cardCategory, decryptedApiKey, masterKey, onOpenSettings]);
 
   const confirmBenefits = () => {
     setFetchedBenefits(pendingBenefits);
@@ -238,7 +265,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         </div>
       )}
 
-      {showScanner && <CardScanner onScanComplete={handleScanComplete} onCancel={handleScannerCancel} />}
+      {showScanner && <CardScanner onScanComplete={handleScanComplete} onCancel={handleScannerCancel} masterKey={masterKey} onOpenSettings={onOpenSettings} />}
 
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border border-slate-100 dark:border-slate-800 flex flex-col">
         <div className="p-8 pb-0">
