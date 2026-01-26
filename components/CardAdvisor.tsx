@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CreditCard, MultiAdvisorResult, AdvisorDecision } from '../types';
-import { analyzeMultiPortfolioRecommendation, getCardSuggestions } from '../services/geminiService';
+import { analyzeMultiPortfolioRecommendation } from '../services/geminiService';
 import { getDecryptedApiKey } from '../utils/storage';
-import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, Search, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, MinusCircle, BrainCircuit, Sparkles, X, Plus, BadgeHelp } from 'lucide-react';
+import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, MinusCircle, BrainCircuit, X, Plus, BadgeHelp } from 'lucide-react';
 import { UI_STRINGS } from '../locales/en';
+import CardNameInput from './CardNameInput';
 
 interface CardAdvisorProps {
   cards: CreditCard[];
@@ -19,58 +20,18 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
   const [results, setResults] = useState<MultiAdvisorResult[]>([]);
   const [error, setError] = useState('');
 
-  // Autocomplete State
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [hasBeenSelected, setHasBeenSelected] = useState(false);
-
-  useEffect(() => {
-    if (hasBeenSelected || !inputName.trim()) {
-        setSuggestions([]);
-        return;
-    }
-
-    const timer = setTimeout(async () => {
-        if (inputName.trim().length < 3) return;
-
-        setIsTyping(true);
-        try {
-            const apiKey = await getDecryptedApiKey(masterKey);
-            if (apiKey) {
-                // Default to 'Credit' for advisor context
-                const res = await getCardSuggestions(inputName, 'Credit', apiKey);
-                setSuggestions(res.suggestions);
-            }
-        } catch (e) {
-            console.debug("Suggestion fetch failed", e);
-        } finally {
-            setIsTyping(false);
-        }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [inputName, hasBeenSelected, masterKey]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInputName(e.target.value);
-      setHasBeenSelected(false);
-  };
-
   const handleSelectSuggestion = (name: string) => {
       if (!targetCards.includes(name)) {
         setTargetCards([...targetCards, name]);
       }
       setInputName('');
-      setSuggestions([]);
-      setHasBeenSelected(true);
   };
 
-  const handleAddInput = (e?: React.FormEvent) => {
+  const handleAddInput = (e?: React.FormEvent | React.KeyboardEvent) => {
     e?.preventDefault();
     if (inputName.trim() && !targetCards.includes(inputName.trim())) {
       setTargetCards([...targetCards, inputName.trim()]);
       setInputName('');
-      setSuggestions([]);
     }
   };
 
@@ -92,7 +53,6 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
     setLoading(true);
     setError('');
     setResults([]);
-    setSuggestions([]);
 
     try {
       const apiKey = await getDecryptedApiKey(masterKey);
@@ -158,49 +118,25 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
                  ))}
              </div>
 
-             <div className="relative z-20">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        value={inputName}
-                        onChange={handleInputChange}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddInput(e)}
-                        placeholder={targetCards.length > 0 ? UI_STRINGS.advisor.add_another : UI_STRINGS.advisor.input_placeholder}
-                        className="flex-grow pl-14 pr-12 py-5 rounded-[2rem] bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-500 outline-none text-base font-bold text-slate-900 dark:text-white transition-all"
-                    />
-                    <button 
-                        onClick={() => handleAddInput()}
-                        disabled={!inputName.trim()}
-                        className="p-4 bg-slate-100 dark:bg-slate-800 rounded-[1.5rem] text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50"
-                    >
-                        <Plus size={24} />
-                    </button>
-                </div>
-                
-                {isTyping && <div className="absolute right-20 top-1/2 -translate-y-1/2"><Loader2 size={20} className="animate-spin text-blue-500" /></div>}
-
-                {/* Autocomplete Dropdown */}
-                {suggestions.length > 0 && !hasBeenSelected && !isTyping && (
-                  <div className="absolute top-full left-0 right-16 mt-3 p-4 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-3xl shadow-2xl animate-in slide-in-from-top-2 z-50">
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                      <Sparkles size={12} className="text-blue-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">AI Suggestions</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {suggestions.map((s, idx) => (
-                            <button
-                                key={idx}
-                                type="button"
-                                onClick={() => handleSelectSuggestion(s)}
-                                className="text-xs font-bold px-4 py-2.5 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 text-left"
-                            >
-                                {s}
-                            </button>
-                        ))}
-                    </div>
-                  </div>
-                )}
+             <div className="flex gap-2 items-start">
+                <CardNameInput
+                    value={inputName}
+                    onChange={setInputName}
+                    onSelect={handleSelectSuggestion}
+                    masterKey={masterKey}
+                    category="Credit"
+                    placeholder={targetCards.length > 0 ? UI_STRINGS.advisor.add_another : UI_STRINGS.advisor.input_placeholder}
+                    className="flex-grow"
+                    showValidationMessage={false}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddInput(e)}
+                />
+                <button 
+                    onClick={() => handleAddInput()}
+                    disabled={!inputName.trim()}
+                    className="p-4 bg-slate-100 dark:bg-slate-800 rounded-[1.5rem] text-slate-600 dark:text-slate-300 hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50 h-[60px]"
+                >
+                    <Plus size={24} />
+                </button>
              </div>
           </div>
           
