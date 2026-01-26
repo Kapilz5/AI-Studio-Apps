@@ -1,5 +1,4 @@
 
-
 export type BenefitCategory = 'Shopping' | 'Food' | 'Entertainment' | 'Fuel' | 'Forex' | 'Travel' | 'Other';
 export type CardCategory = 'Credit' | 'Debit';
 
@@ -51,14 +50,4 @@ export interface BackupPayload {
   version: number;
   timestamp: number;
   data: CreditCard[];
-}
-
-export type AdvisorDecision = "APPLY" | "SKIP" | "OPTIONAL" | "MANUAL";
-
-export interface MultiAdvisorResult {
-  card: string;
-  decision: AdvisorDecision;
-  reason: string;
-  covered: string[];
-  newValue: string[];
 }

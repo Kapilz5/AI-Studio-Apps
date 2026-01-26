@@ -97,9 +97,9 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         try {
           const apiKey = await getDecryptedApiKey(masterKey);
           if (!apiKey) {
-             setValidationMsg("AI Key missing. Check Settings.");
-             setIsTyping(false);
-             return;
+            setValidationMsg("AI Key missing. Check Settings.");
+            setIsTyping(false);
+            return;
           }
 
           const result = await getCardSuggestions(trimmedName, formData.cardCategory, apiKey);
