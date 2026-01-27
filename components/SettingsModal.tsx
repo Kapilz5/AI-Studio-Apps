@@ -1,6 +1,6 @@
 
 
-import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, BellRing, BellPlus, BellOff, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink, Zap, Crown } from 'lucide-react';
+import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, BellRing, BellPlus, BellOff, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink, Zap, Crown, FileText, Loader2 } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { CreditCard } from '../types';
 import { 
@@ -20,7 +20,8 @@ import {
   APP_VERSION,
   getProStatus,
   setProStatus,
-  getAdvisorUsage
+  getAdvisorUsage,
+  restoreSettings
 } from '../utils/storage';
 import { checkPrivacyFilterIntegrity } from '../services/geminiService';
 import SecurityAuth from './SecurityAuth';
@@ -59,6 +60,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
   const [backupMode, setBackupMode] = useState<'export' | 'import' | null>(null);
   const [backupPassword, setBackupPassword] = useState('');
   const [isProcessingBackup, setIsProcessingBackup] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Security Health State
@@ -202,31 +204,38 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setBackupMode('import');
+      setRestoreFile(e.target.files[0]);
     }
   };
 
   const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
-    const file = fileInputRef.current?.files?.[0];
+    const file = restoreFile;
     if (!file || backupPassword.length < 1) return;
 
     setIsProcessingBackup(true);
     try {
       const buffer = await file.arrayBuffer();
-      const restoredCards = await importEncryptedBackup(buffer, backupPassword);
+      const payload = await importEncryptedBackup(buffer, backupPassword);
       
-      // Save directly to encrypted storage
-      await saveCards(restoredCards, masterKey);
-      onCardsSynced(restoredCards);
+      // 1. Restore Cards
+      await saveCards(payload.data, masterKey);
       
-      alert(`Successfully restored ${restoredCards.length} cards.`);
-      setBackupMode(null);
-      setBackupPassword('');
-      onClose(); // Close modal to refresh view context if needed
+      // 2. Restore Settings
+      if (payload.settings) {
+        await restoreSettings(payload.settings);
+      }
+      
+      onCardsSynced(payload.data);
+      
+      alert("Backup restored successfully. The app will now reload.");
+      
+      // 3. Force Reload
+      window.location.reload();
+      
     } catch (err: any) {
       console.error(err);
-      alert("Import failed: " + err.message);
+      alert(err.message || "Import failed. Check password or file.");
     } finally {
       setIsProcessingBackup(false);
     }
@@ -309,7 +318,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                     <h3 className="text-xl font-black text-slate-900 dark:text-white">
                         {backupMode === 'export' ? UI_STRINGS.settings.export_modal_title : UI_STRINGS.settings.import_modal_title}
                     </h3>
-                    <button onClick={() => { setBackupMode(null); setBackupPassword(''); }} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500"><X size={20} /></button>
+                    <button onClick={() => { setBackupMode(null); setBackupPassword(''); setRestoreFile(null); }} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500"><X size={20} /></button>
                 </div>
                 
                 <form onSubmit={backupMode === 'export' ? handleExport : handleImport} className="space-y-4">
@@ -318,6 +327,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                             <ShieldAlert size={18} className="text-amber-600 shrink-0 mt-0.5" />
                             <p className="text-xs font-bold text-amber-700 dark:text-amber-400">{UI_STRINGS.settings.import_warning}</p>
                         </div>
+                    )}
+                    
+                    {backupMode === 'import' && (
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Backup File</label>
+                        <div 
+                          onClick={handleImportClick}
+                          className={`p-4 rounded-2xl border-2 border-dashed flex items-center justify-center gap-3 cursor-pointer transition-all active:scale-95 ${restoreFile ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-400' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}
+                        >
+                           {restoreFile ? (
+                             <>
+                               <FileText size={20} className="text-emerald-500" />
+                               <span className="text-xs font-bold text-emerald-600 truncate max-w-[200px]">{restoreFile.name}</span>
+                             </>
+                           ) : (
+                             <>
+                               <Upload size={20} className="text-slate-400" />
+                               <span className="text-xs font-bold text-slate-500">Select .bin file</span>
+                             </>
+                           )}
+                        </div>
+                      </div>
                     )}
                     
                     <div>
@@ -337,10 +368,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
 
                     <button 
                         type="submit" 
-                        disabled={isProcessingBackup || !backupPassword}
-                        className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50"
+                        disabled={isProcessingBackup || !backupPassword || (backupMode === 'import' && !restoreFile)}
+                        className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95"
                     >
-                        {isProcessingBackup ? UI_STRINGS.common.loading : (
+                        {isProcessingBackup ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>{backupMode === 'import' ? "Restoring..." : UI_STRINGS.common.loading}</span>
+                          </>
+                        ) : (
                             backupMode === 'export' ? UI_STRINGS.settings.export_action : UI_STRINGS.settings.import_action
                         )}
                     </button>
@@ -545,7 +581,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 flex items-center justify-center"><Download size={20} /></div>
                     <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300">Export</span>
                 </button>
-                <button onClick={handleImportClick} className="p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex flex-col items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">
+                <button onClick={() => setBackupMode('import')} className="p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex flex-col items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">
                     <div className="w-10 h-10 rounded-xl bg-fuchsia-50 dark:bg-fuchsia-900/20 text-fuchsia-600 flex items-center justify-center"><Upload size={20} /></div>
                     <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300">Restore</span>
                 </button>

@@ -611,44 +611,59 @@ export const incrementAdvisorUsage = async () => {
   await idb.put(KEY_ADVISOR_USAGE, { month: key, count: newCount });
 };
 
+export const restoreSettings = async (settings: BackupPayload['settings']) => {
+  if (!settings) return;
+  if (settings.notificationPeriod) await setNotificationPeriod(settings.notificationPeriod);
+  if (settings.proStatus !== undefined) await setProStatus(settings.proStatus);
+  if (settings.advisorUsage) await idb.put(KEY_ADVISOR_USAGE, settings.advisorUsage);
+};
+
 // --- EXPORT / IMPORT (Manual Encrypted Backups) ---
 
 export const exportEncryptedBackup = async (cards: CreditCard[], passphrase: string): Promise<Blob> => {
-  // 1. Prepare Payload
+  // 1. Gather Settings
+  const settings = {
+    notificationPeriod: await getNotificationPeriod(),
+    proStatus: await getProStatus(),
+    advisorUsage: (await idb.get<{ month: string; count: number }>(KEY_ADVISOR_USAGE)) || { month: '', count: 0 }
+  };
+
+  // 2. Prepare Payload
   const payload: BackupPayload = {
     version: 1,
     timestamp: Date.now(),
-    data: cards
+    data: cards,
+    settings
   };
   const jsonString = JSON.stringify(payload);
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(jsonString);
 
-  // 2. Generate Salt & IV
+  // 3. Generate Salt & IV
   const salt = window.crypto.getRandomValues(new Uint8Array(SALT_LEN));
   const iv = window.crypto.getRandomValues(new Uint8Array(IV_LEN));
 
-  // 3. Derive Key from User Passphrase (case-sensitive)
+  // 4. Derive Key from User Passphrase (case-sensitive)
   const key = await deriveKeyFromPassword(passphrase, salt);
 
-  // 4. Encrypt
+  // 5. Encrypt
   const encrypted = await window.crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     key,
     dataBuffer
   );
 
-  // 5. Combine: [SALT 16] [IV 12] [CIPHERTEXT]
+  // 6. Combine: [SALT 16] [IV 12] [CIPHERTEXT]
   const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
   combined.set(salt, 0);
   combined.set(iv, SALT_LEN);
   combined.set(new Uint8Array(encrypted), SALT_LEN + IV_LEN);
 
-  // 6. Return as Blob
+  // 7. Return as Blob
   return new Blob([combined], { type: 'application/octet-stream' });
 };
 
-export const importEncryptedBackup = async (fileBuffer: ArrayBuffer, passphrase: string): Promise<CreditCard[]> => {
+export const importEncryptedBackup = async (fileBuffer: ArrayBuffer, passphrase: string): Promise<BackupPayload> => {
   const data = new Uint8Array(fileBuffer);
 
   // 1. Extract Headers
@@ -678,7 +693,7 @@ export const importEncryptedBackup = async (fileBuffer: ArrayBuffer, passphrase:
       throw new Error("Invalid backup structure");
     }
 
-    return payload.data;
+    return payload;
   } catch (e) {
     console.error("Import failed:", e);
     throw new Error("Decryption failed. Incorrect passphrase or corrupted file.");

@@ -51,6 +51,11 @@ export interface BackupPayload {
   version: number;
   timestamp: number;
   data: CreditCard[];
+  settings?: {
+    notificationPeriod?: number;
+    proStatus?: boolean;
+    advisorUsage?: { month: string; count: number };
+  };
 }
 
 export type AdvisorDecision = "APPLY" | "SKIP" | "OPTIONAL" | "MANUAL";
