@@ -1,4 +1,5 @@
 
+
 import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, BellRing, BellPlus, BellOff, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { CreditCard } from '../types';
@@ -9,6 +10,7 @@ import {
   getNotificationPeriod,
   setNotificationPeriod,
   enrollBiometrics,
+  enrollBiometricsWithKey,
   exportEncryptedBackup,
   importEncryptedBackup,
   saveCards,
@@ -37,6 +39,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [showMpinReset, setShowMpinReset] = useState(false);
   const [showPrivacyScreen, setShowPrivacyScreen] = useState(false);
+  const [showBioAuth, setShowBioAuth] = useState(false);
 
   // API Key State
   const [apiKey, setApiKey] = useState('');
@@ -122,15 +125,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
       await setBiometricEnrolled(false);
       setIsBiometricEnrolled(false);
     } else {
-      const mpin = prompt("Enter your MPIN to authorize FaceID/TouchID:");
-      if (mpin) {
-        const success = await enrollBiometrics(mpin);
+      // Trigger authentication overlay to enable
+      setShowBioAuth(true);
+    }
+  };
+
+  const handleBioAuthSuccess = async (masterKey: Uint8Array) => {
+    try {
+        const success = await enrollBiometricsWithKey(masterKey);
         if (success) {
-          setIsBiometricEnrolled(true);
+            setIsBiometricEnrolled(true);
+            alert(UI_STRINGS.security.bio_setup_success);
         } else {
-          alert("Biometric enrollment failed. Ensure your device supports it.");
+            alert("Biometric enrollment failed.");
         }
-      }
+    } catch (e: any) {
+        alert("Failed to setup biometrics: " + e.message);
+    } finally {
+        setShowBioAuth(false);
     }
   };
 
@@ -210,6 +222,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
 
   if (showPrivacyScreen) {
     return <PrivacyScreen onContinue={() => setShowPrivacyScreen(false)} />;
+  }
+
+  if (showBioAuth) {
+    return (
+        <div className="fixed inset-0 z-[100]">
+            <SecurityAuth 
+                mode="verify"
+                onSuccess={handleBioAuthSuccess}
+                onCancel={() => setShowBioAuth(false)}
+            />
+        </div>
+    );
   }
 
   // Backup Modal Overlay
@@ -366,7 +390,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
              </div>
           </div>
           
-          {/* ... Rest of existing settings code (notifications, backup, device security) ... */}
           {/* Notification Settings */}
           <div className="space-y-4">
             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Smart Alerts</label>

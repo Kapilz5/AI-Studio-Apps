@@ -1,4 +1,5 @@
 
+
 export const UI_STRINGS = {
   common: {
     app_name: "My Cards",
@@ -96,6 +97,7 @@ export const UI_STRINGS = {
     mpin_incorrect_error: "Incorrect MPIN. Please try again.",
     reset_success_msg: "MPIN reset successfully!",
     bio_setup_prompt: "Please enter a 4-digit MPIN first before enabling biometrics.",
+    bio_setup_success: "Biometric login enabled successfully!",
   },
   settings: {
     title: "Vault Controls",

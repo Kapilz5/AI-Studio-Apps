@@ -1,4 +1,5 @@
 
+
 import { CreditCard, BackupPayload } from '../types';
 
 // Security Version 6: Local-Only Storage (No Cloud Sync)
@@ -292,6 +293,7 @@ async function decryptMasterKey(password: string, storageKey: string): Promise<U
 
 // --- Biometric Storage (WebAuthn / Local Simulation) ---
 export const enrollBiometricsWithKey = async (masterKey: Uint8Array) => {
+  console.log("[Bio] Starting enrollment...");
   try {
     if (!window.navigator.credentials || !window.navigator.credentials.create) {
         throw new Error("Web Authentication is not supported.");
@@ -307,13 +309,21 @@ export const enrollBiometricsWithKey = async (masterKey: Uint8Array) => {
           name: "user@local",
           displayName: "Local User"
         },
-        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-        authenticatorSelection: { authenticatorAttachment: "platform" },
+        // Request broadly compatible algorithms (ES256, RS256)
+        pubKeyCredParams: [
+          { alg: -7, type: "public-key" },  // ES256
+          { alg: -257, type: "public-key" } // RS256
+        ],
+        authenticatorSelection: { 
+            authenticatorAttachment: "platform",
+            userVerification: "required" // Enforce biometric/pin usage
+        },
         timeout: 60000
       }
     });
 
     if (credential) {
+      console.log("[Bio] Credential created successfully.");
       // Note: On Native, we typically rely on Secure Storage + Biometric Plugin.
       // However, keeping WebAuthn logic here allows cross-platform compatibility 
       // if the native WebView supports it (modern Android/iOS do).
@@ -322,7 +332,7 @@ export const enrollBiometricsWithKey = async (masterKey: Uint8Array) => {
       return true;
     }
   } catch (e: any) {
-    console.error("Biometric enrollment error:", e.name);
+    console.error("[Bio] Biometric enrollment error:", e);
     await idb.delete(KEY_BIO_ENABLED);
     throw e;
   }
