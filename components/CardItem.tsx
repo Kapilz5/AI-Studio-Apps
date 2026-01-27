@@ -1,6 +1,6 @@
 
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { CreditCard as CardType } from '../types';
 import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCircle, Eye, EyeOff, Lock, Clock, Plus, X, Check, PartyPopper, Copy, ClipboardCheck, CalendarOff } from 'lucide-react';
 import SecurityAuth from './SecurityAuth';
@@ -30,6 +30,8 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
   const maxSwipe = -120;
 
   const isExpired = card.status === 'expired';
+  // Logic: If card is expired, it is treated as "locked" (blurred) until user authenticates via View.
+  const isLockedExpired = isExpired && !isSensitiveVisible;
 
   // 1. Anti-Screenshot / Privacy Blur
   // Immediately hide sensitive data if the app goes to background (user switches apps, opens task switcher)
@@ -176,13 +178,14 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
   };
 
   return (
-    <div className={`relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-300 group text-left ${isExpired ? 'opacity-70 grayscale-[0.8]' : ''}`}>
-      {showAuthModal && (
+    <div className={`relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-300 group text-left ${isExpired ? 'opacity-80 grayscale-[0.6]' : ''}`}>
+      {showAuthModal && createPortal(
         <SecurityAuth 
             mode="verify" 
             onSuccess={onAuthSuccess} 
             onCancel={() => { setShowAuthModal(false); setPendingAuthAction(null); }} 
-        />
+        />,
+        document.body
       )}
       <div className="absolute inset-0 flex justify-end items-stretch p-2">
         <button onClick={() => { setShowConfirm(true); setSwipeOffset(0); }} className="w-[110px] h-full bg-rose-600 text-white rounded-[2.5rem] flex flex-col items-center justify-center shadow-lg transition-transform active:scale-95">
@@ -210,10 +213,17 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
         <div className="relative transition-all duration-500 flex flex-col">
           <div className={`relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${isExpired ? 'bg-slate-500 border border-slate-400' : 'card-gradient'} ${expiring ? 'ring-4 ring-rose-400/80 shadow-rose-500/40 scale-[1.02]' : ''}`}>
             
-            {isExpired && (
-                <div className="absolute top-4 left-4 bg-slate-800 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest z-20 flex items-center gap-1 shadow-lg border border-white/20">
-                    <CalendarOff size={10} />
-                    <span>Expired</span>
+            {/* Visual Blurred Overlay for Expired Locked State */}
+            {isLockedExpired && (
+                <div className="absolute inset-0 z-20 backdrop-blur-[4px] bg-slate-900/10 flex items-end justify-end p-6 rounded-[2.5rem] transition-all duration-500">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); handleToggleSensitive(); }}
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-full shadow-lg shadow-amber-500/30 border border-amber-400 hover:bg-amber-400 transition-all active:scale-95 group/badge"
+                        title="This card is expired. Unlock vault to view details."
+                    >
+                        <Lock size={12} className="animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-widest leading-none">Expired – Unlock to View</span>
+                    </button>
                 </div>
             )}
 
@@ -237,7 +247,8 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
                 </button>
               </div>
             </div>
-            <div className="z-10 min-w-0">
+            
+            <div className={`z-10 min-w-0 transition-all duration-500 ${isLockedExpired ? 'blur-[3px] opacity-60' : ''}`}>
               <div className="flex items-center gap-4 mb-3">
                 {renderNetworkLogo(card.cardType)}
                 <h3 className="text-2xl font-black truncate tracking-tight min-w-0 select-none" title={card.name}>{card.name}</h3>
@@ -256,7 +267,8 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
                   </button>
               </div>
             </div>
-            <div className="flex justify-between items-end z-10 border-t border-white/10 pt-4">
+
+            <div className={`flex justify-between items-end z-10 border-t border-white/10 pt-4 transition-all duration-500 ${isLockedExpired ? 'blur-[3px] opacity-60' : ''}`}>
               <div className="flex gap-8 text-left">
                 <div>
                   <p className="text-[10px] uppercase font-black text-white/40 tracking-widest mb-1">Expires</p>
