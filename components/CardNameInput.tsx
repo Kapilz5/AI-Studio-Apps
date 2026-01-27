@@ -31,6 +31,14 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Force strict reset on mount to prevent state persistence across form instances
+  useEffect(() => {
+    setSuggestions([]);
+    setError('');
+    setIsTyping(false);
+    setShowDropdown(false);
+  }, []);
+
   useEffect(() => {
     // Hide dropdown if clicked outside
     const handleClickOutside = (event: MouseEvent) => {
@@ -44,31 +52,44 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
 
   useEffect(() => {
     // Debounced suggestion fetch
-    if (!value || value.length < 2 || !showDropdown) {
+    if (!value || value.length < 2) {
       setSuggestions([]);
       setError('');
+      setIsTyping(false);
       return;
     }
 
+    // Don't fetch if dropdown is hidden (user selected or clicked away)
+    if (!showDropdown) return;
+
     const timer = setTimeout(async () => {
       if (!apiKey) {
-        setError("AI suggestions unavailable (No API Key)");
+        // Only show error if we really intended to fetch
+        if (value.length >= 2) {
+             setError("AI suggestions unavailable (No API Key)");
+        }
         return;
       }
 
       setIsTyping(true);
-      setError('');
+      setError(''); // Clear any previous error before new attempt
+      
       try {
         const result = await getCardSuggestions(value, apiKey);
         if (result.suggestions && result.suggestions.length > 0) {
           setSuggestions(result.suggestions);
+          setError('');
         } else {
           setSuggestions([]);
-          if (result.error) setError("AI unavailable - type manually");
+          if (result.error) {
+              // Ensure we don't persist error if user kept typing
+              setError("AI unavailable – type manually"); 
+          }
         }
       } catch (err) {
         console.error(err);
-        setError("AI unavailable - type manually");
+        setSuggestions([]);
+        setError("AI unavailable – type manually");
       } finally {
         setIsTyping(false);
       }
@@ -80,6 +101,9 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
     setShowDropdown(true);
+    // IMMEDIATE RESET: Clear error as soon as user types to allow fresh calls
+    if (error) setError('');
+    if (suggestions.length > 0) setSuggestions([]);
   };
 
   const handleSuggestionClick = (name: string) => {
@@ -87,6 +111,15 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
     if (onSelect) onSelect(name);
     setShowDropdown(false);
     setSuggestions([]);
+    setError('');
+  };
+
+  const handleFocus = () => {
+      if (value.length >= 2) {
+          setShowDropdown(true);
+          // Allow fresh call attempt on focus if previously failed
+          if (error) setError('');
+      }
   };
 
   return (
@@ -96,11 +129,12 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
           type="text"
           value={value}
           onChange={handleInputChange}
-          onFocus={() => { if (value.length >= 2) setShowDropdown(true); }}
+          onFocus={handleFocus}
           onKeyDown={onKeyDown}
           placeholder={placeholder}
           autoFocus={autoFocus}
           disabled={disabled}
+          autoComplete="off"
           className="w-full pl-5 pr-12 py-4 rounded-2xl border-2 dark:bg-slate-800 dark:text-white border-slate-100 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold truncate"
         />
         {isTyping && (
