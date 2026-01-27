@@ -1,6 +1,6 @@
 
 
-import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, BellRing, BellPlus, BellOff, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, BellRing, BellPlus, BellOff, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink, Zap, Crown } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { CreditCard } from '../types';
 import { 
@@ -16,7 +16,11 @@ import {
   saveCards,
   runStorageIntegrityCheck,
   getDecryptedApiKey,
-  saveEncryptedApiKey
+  saveEncryptedApiKey,
+  APP_VERSION,
+  getProStatus,
+  setProStatus,
+  getAdvisorUsage
 } from '../utils/storage';
 import { checkPrivacyFilterIntegrity } from '../services/geminiService';
 import SecurityAuth from './SecurityAuth';
@@ -40,6 +44,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
   const [showMpinReset, setShowMpinReset] = useState(false);
   const [showPrivacyScreen, setShowPrivacyScreen] = useState(false);
   const [showBioAuth, setShowBioAuth] = useState(false);
+  
+  // Pro / Monetization State
+  const [isPro, setIsPro] = useState(false);
+  const [advisorUsage, setAdvisorUsage] = useState({ count: 0, limit: 20 });
+  const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
 
   // API Key State
   const [apiKey, setApiKey] = useState('');
@@ -75,6 +84,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
         
         const np = await getNotificationPeriod();
         setNotifPeriod(np);
+        
+        const proStatus = await getProStatus();
+        setIsPro(proStatus);
+        
+        const usage = await getAdvisorUsage();
+        setAdvisorUsage({ count: usage.count, limit: usage.limit });
 
         // Decrypt the stored API key in memory to show it (masked)
         const storedKey = await getDecryptedApiKey(masterKey);
@@ -118,6 +133,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
     await saveEncryptedApiKey(apiKey, masterKey);
     setApiKeySaved(true);
     alert("API Key encrypted and saved to local device vault.");
+  };
+  
+  const handleUpgradeToPro = async () => {
+      await setProStatus(true);
+      setIsPro(true);
+      setShowUpgradeConfirm(false);
+      alert("Pro features unlocked! (Simulated)");
   };
 
   const toggleBiometrics = async () => {
@@ -236,6 +258,48 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
     );
   }
 
+  // Upgrade Modal
+  if (showUpgradeConfirm) {
+    return (
+      <div className="fixed inset-0 z-[90] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6">
+        <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-8 border border-white/10 shadow-2xl animate-in zoom-in duration-200 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/30">
+                <Crown size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{UI_STRINGS.monetization.upgrade_title}</h3>
+            <p className="text-sm font-medium text-slate-500 mb-8">{UI_STRINGS.monetization.upgrade_subtitle}</p>
+            
+            <div className="space-y-4 text-left mb-8">
+                {[
+                   UI_STRINGS.monetization.feat_advisor,
+                   UI_STRINGS.monetization.feat_export,
+                   UI_STRINGS.monetization.feat_alerts,
+                   UI_STRINGS.monetization.feat_support
+                ].map((feat, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                        <Check className="text-emerald-500 shrink-0" size={16} />
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{feat}</span>
+                    </div>
+                ))}
+            </div>
+
+            <button 
+                onClick={handleUpgradeToPro}
+                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/30 active:scale-95 transition-all mb-3"
+            >
+                {UI_STRINGS.monetization.upgrade_btn}
+            </button>
+            <button 
+                onClick={() => setShowUpgradeConfirm(false)}
+                className="w-full py-3 text-slate-400 font-bold text-xs"
+            >
+                {UI_STRINGS.common.cancel}
+            </button>
+        </div>
+      </div>
+    );
+  }
+
   // Backup Modal Overlay
   if (backupMode) {
     return (
@@ -301,6 +365,54 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
 
         <div className="p-8 space-y-8 text-left">
           
+          {/* Plan Membership Section */}
+          <div className="space-y-4">
+             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{UI_STRINGS.monetization.plan_title}</label>
+             <div className={`p-6 rounded-[2rem] border relative overflow-hidden ${isPro ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
+                {isPro && <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />}
+                
+                <div className="flex justify-between items-start mb-6 relative z-10">
+                   <div>
+                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest mb-2 ${isPro ? 'bg-white text-indigo-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+                         {isPro ? <Crown size={12} fill="currentColor" /> : <div className="w-2 h-2 rounded-full bg-slate-400" />}
+                         <span>{isPro ? UI_STRINGS.monetization.pro_badge : UI_STRINGS.monetization.free_badge}</span>
+                      </div>
+                      <h4 className={`text-xl font-black ${isPro ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                        {isPro ? 'Pro Membership' : 'Standard Access'}
+                      </h4>
+                   </div>
+                   {!isPro && (
+                       <button 
+                         onClick={() => setShowUpgradeConfirm(true)}
+                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/30 transition-all active:scale-95"
+                       >
+                         {UI_STRINGS.monetization.upgrade_btn}
+                       </button>
+                   )}
+                </div>
+
+                {!isPro && (
+                   <div className="relative z-10">
+                      <div className="flex justify-between items-end mb-2">
+                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{UI_STRINGS.monetization.credits_used}</span>
+                         <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            {advisorUsage.count} <span className="text-slate-400">{UI_STRINGS.monetization.credits_limit}</span>
+                         </span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                         <div className={`h-full rounded-full transition-all duration-500 ${advisorUsage.count >= advisorUsage.limit ? 'bg-rose-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (advisorUsage.count / advisorUsage.limit) * 100)}%` }} />
+                      </div>
+                   </div>
+                )}
+                
+                {isPro && (
+                    <div className="relative z-10 text-indigo-100 text-xs font-medium">
+                       <p>Thank you for supporting independent development. Your vault is fully unlocked.</p>
+                    </div>
+                )}
+             </div>
+          </div>
+
           {/* AI Configuration */}
           <div className="space-y-4">
              <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{UI_STRINGS.settings.ai_config_title}</label>
@@ -519,6 +631,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
             <p className="text-[10px] text-slate-500 max-w-xs mx-auto leading-relaxed">
               {UI_STRINGS.privacy.notice_text}
             </p>
+             <div className="mt-4 inline-block px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+               v{APP_VERSION}
+             </div>
           </div>
         </div>
       </div>

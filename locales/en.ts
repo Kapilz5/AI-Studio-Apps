@@ -173,7 +173,9 @@ export const UI_STRINGS = {
     section_covered: "Already Covered",
     section_similar: "Similar / Redundant",
     analysis_failed: "Could not auto-analyze some cards. Try entering benefits manually.",
-    ai_verify_failed: "Card unrecognized. Please confirm name."
+    ai_verify_failed: "Card unrecognized. Please confirm name.",
+    apply_partner: "Apply via Partner",
+    export_btn: "Export Analysis"
   },
   scanner: {
     analyzing_title: "AI Vision Engine",
@@ -207,5 +209,23 @@ export const UI_STRINGS = {
     no_access: "We cannot access your cards.",
     ai_privacy: "AI features never receive full card numbers or CVV.",
     data_loss: "Resetting your phone or deleting this app permanently removes all cards."
+  },
+  monetization: {
+    pro_badge: "PRO",
+    free_badge: "FREE",
+    upgrade_btn: "Upgrade to Pro",
+    restore_btn: "Restore Purchase",
+    plan_title: "Your Plan",
+    credits_used: "Advisor Credits Used",
+    credits_limit: "/ 20 Monthly",
+    upgrade_title: "Unlock Pro Features",
+    upgrade_subtitle: "One-time local unlock. No subscription.",
+    feat_advisor: "Unlimited AI Advisor",
+    feat_export: "Export Analysis (PDF/Text)",
+    feat_alerts: "Advanced Fee & Expiry Alerts",
+    feat_support: "Priority Support",
+    limit_reached_title: "Monthly Limit Reached",
+    limit_reached_subtitle: "You've used all 20 free Advisor runs this month.",
+    limit_upgrade_action: "Upgrade for Unlimited Access",
   }
 };

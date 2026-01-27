@@ -2,6 +2,9 @@
 
 import { CreditCard, BackupPayload } from '../types';
 
+// App Version Definition
+export const APP_VERSION = '1.1.0';
+
 // Security Version 6: Local-Only Storage (No Cloud Sync)
 const DB_NAME = 'MyCards_SecureVault_v6';
 const STORE_NAME = 'vault_store';
@@ -16,8 +19,11 @@ const KEY_SECRET_HASH = 'secret_hash';
 const KEY_BIO_ENABLED = 'bio_enabled';
 const KEY_NOTIF_PERIOD = 'notif_period';
 const KEY_NOTIFIED_CARDS = 'notified_cards';
+const KEY_LAST_SEEN_VERSION = 'last_seen_version';
 // Changed to explicit encrypted key to denote it contains ciphertext
 const KEY_USER_API_KEY_ENC = 'user_api_key_enc';
+const KEY_PRO_STATUS = 'pro_status_v1';
+const KEY_ADVISOR_USAGE = 'advisor_usage_v1';
 
 // Crypto Constants
 const PBKDF2_ITERATIONS = 600000; // High iteration count for PWA fallback
@@ -513,6 +519,8 @@ export const wipeEverything = async () => {
     await idb.put(KEY_DATA_ENC, noise);
     await idb.put(KEY_MPIN_HASH, noise);
     await idb.put(KEY_USER_API_KEY_ENC, noise);
+    await idb.put(KEY_PRO_STATUS, noise);
+    await idb.put(KEY_ADVISOR_USAGE, noise);
   } catch (e) {
     console.warn("Secure overwrite interrupted, proceeding to clear.", e);
   }
@@ -554,6 +562,53 @@ export const removeNotifiedFlag = async (cardId: string) => {
         delete notified[cardId];
         await saveNotifiedCards(notified);
     }
+};
+
+// Version Tracking
+export const getLastSeenVersion = async (): Promise<string | undefined> => {
+  return await idb.get<string>(KEY_LAST_SEEN_VERSION);
+};
+
+export const setLastSeenVersion = async (version: string) => {
+  await idb.put(KEY_LAST_SEEN_VERSION, version);
+};
+
+// --- Monetization & Pro Tier ---
+export const getProStatus = async (): Promise<boolean> => {
+  return await idb.get<boolean>(KEY_PRO_STATUS) || false;
+};
+
+export const setProStatus = async (enabled: boolean) => {
+  if (enabled) await idb.put(KEY_PRO_STATUS, true);
+  else await idb.delete(KEY_PRO_STATUS);
+};
+
+export const getAdvisorUsage = async (): Promise<{ count: number, limit: number, remaining: number }> => {
+  const now = new Date();
+  const key = `${now.getFullYear()}-${now.getMonth()}`;
+  const usageData = await idb.get<{ month: string, count: number }>(KEY_ADVISOR_USAGE) || { month: key, count: 0 };
+  
+  // Reset if new month
+  if (usageData.month !== key) {
+    return { count: 0, limit: 20, remaining: 20 };
+  }
+  
+  return { count: usageData.count, limit: 20, remaining: Math.max(0, 20 - usageData.count) };
+};
+
+export const incrementAdvisorUsage = async () => {
+  const now = new Date();
+  const key = `${now.getFullYear()}-${now.getMonth()}`;
+  const usageData = await idb.get<{ month: string, count: number }>(KEY_ADVISOR_USAGE) || { month: key, count: 0 };
+  
+  let newCount = usageData.count;
+  if (usageData.month !== key) {
+    newCount = 1;
+  } else {
+    newCount += 1;
+  }
+  
+  await idb.put(KEY_ADVISOR_USAGE, { month: key, count: newCount });
 };
 
 // --- EXPORT / IMPORT (Manual Encrypted Backups) ---

@@ -1,8 +1,9 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2, Lightbulb } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
-import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod, removeNotifiedFlag } from './utils/storage';
+import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod, removeNotifiedFlag, getLastSeenVersion, setLastSeenVersion, APP_VERSION } from './utils/storage';
 import CardItem from './components/CardItem';
 import CardForm from './components/CardForm';
 import BenefitSearch from './components/BenefitSearch';
@@ -33,6 +34,7 @@ const App: React.FC = () => {
   const [isSetupRequired, setIsSetupRequired] = useState(false);
   const [masterKey, setMasterKey] = useState<Uint8Array | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showUpdateToast, setShowUpdateToast] = useState(false);
   
   const isUnlockedRef = useRef(false);
   // FIX: Use ReturnType<typeof setTimeout> instead of NodeJS.Timeout to avoid namespace error in browser environments
@@ -126,10 +128,22 @@ const App: React.FC = () => {
     };
   }, [lockApp]);
 
-  // Effect to run notification checks when app is unlocked or data changes
+  // Effect to run notification checks and version check when app is unlocked
   useEffect(() => {
     if (!isAppLocked && masterKey) {
         checkAndNotifyForExpiringCards(cards, notificationPeriod);
+
+        // Check for updates
+        const checkVersion = async () => {
+          const lastVersion = await getLastSeenVersion();
+          if (lastVersion !== APP_VERSION) {
+            setShowUpdateToast(true);
+            await setLastSeenVersion(APP_VERSION);
+            // Auto dismiss toast
+            setTimeout(() => setShowUpdateToast(false), 5000);
+          }
+        };
+        checkVersion();
     }
   }, [cards, notificationPeriod, isAppLocked, masterKey]);
 
@@ -478,6 +492,23 @@ const App: React.FC = () => {
               <CheckCircle2 size={16} className="text-emerald-400" />
               <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Vault Secured with AES-256</span>
            </div>
+        </div>
+      )}
+
+      {showUpdateToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4 animate-in slide-in-from-bottom-5 fade-in duration-500">
+          <div className="bg-slate-900/90 dark:bg-blue-600/90 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md border border-white/10 flex items-start gap-4">
+            <div className="p-2 bg-white/10 rounded-xl shrink-0">
+              <Sparkles size={20} className="text-yellow-300" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-black">New Update Available 🎉</h4>
+              <p className="text-xs font-medium text-white/80 mt-1">App has been refreshed with improvements.</p>
+            </div>
+            <button onClick={() => setShowUpdateToast(false)} className="p-1 hover:bg-white/10 rounded-lg">
+              <X size={16} />
+            </button>
+          </div>
         </div>
       )}
 

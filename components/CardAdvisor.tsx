@@ -1,8 +1,10 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { CreditCard, MultiAdvisorResult, AdvisorDecision, CardCategory } from '../types';
 import { analyzeMultiPortfolioRecommendation } from '../services/geminiService';
-import { getDecryptedApiKey } from '../utils/storage';
-import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, BrainCircuit, X, Plus, BadgeHelp, Play, Shield } from 'lucide-react';
+import { getDecryptedApiKey, getProStatus, getAdvisorUsage, incrementAdvisorUsage } from '../utils/storage';
+import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, BrainCircuit, X, Plus, BadgeHelp, Play, Shield, ExternalLink, Download, Lock } from 'lucide-react';
 import { UI_STRINGS } from '../locales/en';
 import CardNameInput from './CardNameInput';
 
@@ -20,14 +22,26 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
   const [error, setError] = useState('');
   const [decryptedApiKey, setDecryptedApiKey] = useState<string | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] = useState<CardCategory>('Credit');
+  
+  // Monetization State
+  const [isPro, setIsPro] = useState(false);
+  const [usage, setUsage] = useState({ count: 0, limit: 20 });
+  const [limitReached, setLimitReached] = useState(false);
 
-  // Decrypt API key on mount for suggestions
+  // Decrypt API key and load pro status on mount
   useEffect(() => {
-    const loadKey = async () => {
+    const init = async () => {
         const key = await getDecryptedApiKey(masterKey);
         setDecryptedApiKey(key);
+        
+        const pro = await getProStatus();
+        setIsPro(pro);
+        
+        const u = await getAdvisorUsage();
+        setUsage({ count: u.count, limit: u.limit });
+        setLimitReached(u.remaining <= 0);
     };
-    loadKey();
+    init();
   }, [masterKey]);
 
   const handleSelectSuggestion = (name: string) => {
@@ -48,8 +62,32 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
   const removeTargetCard = (name: string) => {
     setTargetCards(prev => prev.filter(c => c !== name));
   };
+  
+  const handleExport = () => {
+      if (!results.length) return;
+      
+      const text = results.map(r => {
+          return `CARD: ${r.card}\nDECISION: ${r.decision}\nREASON: ${r.reason}\n\n`;
+      }).join('----------------\n');
+      
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mycards_advisor_${new Date().toISOString().split('T')[0]}.txt`;
+      a.click();
+  };
 
   const handleAnalyze = async () => {
+    // Check usage limits if not pro
+    if (!isPro) {
+        const currentUsage = await getAdvisorUsage();
+        if (currentUsage.remaining <= 0) {
+            setLimitReached(true);
+            return;
+        }
+    }
+
     // Include the text in input if user hasn't hit enter yet
     const cardsToAnalyze = [...targetCards];
     if (inputName.trim() && !targetCards.includes(inputName.trim())) {
@@ -60,7 +98,6 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
 
     setLoading(true);
     setError('');
-    // Keep previous results visible if we want, or clear them. Clearing feels more responsive to "Fresh Analysis"
     setResults([]); 
 
     try {
@@ -83,6 +120,14 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
         // Clear input state only on success
         setTargetCards([]);
         setInputName('');
+        
+        // Increment usage
+        if (!isPro) {
+            await incrementAdvisorUsage();
+            const newUsage = await getAdvisorUsage();
+            setUsage({ count: newUsage.count, limit: newUsage.limit });
+            setLimitReached(newUsage.remaining <= 0);
+        }
       } else {
         setError(UI_STRINGS.advisor.analysis_failed);
       }
@@ -179,14 +224,33 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
              </div>
           )}
 
-          <button 
-            onClick={handleAnalyze} 
-            disabled={loading || (targetCards.length === 0 && !inputName.trim())}
-            className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
-          >
-            {loading ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} fill="currentColor" />}
-            <span>{loading ? UI_STRINGS.advisor.analyzing : UI_STRINGS.advisor.analyze_btn} {targetCards.length > 0 && `(${targetCards.length + (inputName.trim() ? 1 : 0)})`}</span>
-          </button>
+          {limitReached && !isPro ? (
+              <div className="p-6 bg-slate-900 dark:bg-indigo-900/30 text-white rounded-[2rem] text-center border border-white/10 shadow-lg animate-in zoom-in">
+                  <h3 className="text-lg font-black mb-1">{UI_STRINGS.monetization.limit_reached_title}</h3>
+                  <p className="text-sm font-medium text-slate-300 mb-4">{UI_STRINGS.monetization.limit_reached_subtitle}</p>
+                  <button 
+                    onClick={() => onOpenSettings?.()}
+                    className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/40"
+                  >
+                      {UI_STRINGS.monetization.limit_upgrade_action}
+                  </button>
+              </div>
+          ) : (
+            <button 
+                onClick={handleAnalyze} 
+                disabled={loading || (targetCards.length === 0 && !inputName.trim())}
+                className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+            >
+                {loading ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} fill="currentColor" />}
+                <span>{loading ? UI_STRINGS.advisor.analyzing : UI_STRINGS.advisor.analyze_btn} {targetCards.length > 0 && `(${targetCards.length + (inputName.trim() ? 1 : 0)})`}</span>
+            </button>
+          )}
+          
+          {!isPro && !limitReached && (
+              <p className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+                 Free Uses Remaining: {usage.count} / {usage.limit}
+              </p>
+          )}
       </div>
 
       {/* Error State */}
@@ -296,10 +360,31 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
                             <button onClick={() => removeTargetCard(result.card)} className="text-xs font-black uppercase tracking-widest text-rose-500 hover:underline">Remove from analysis</button>
                         </div>
                      )}
+
+                     {/* Footer Actions */}
+                     <div className="px-8 pb-8 flex items-center justify-between gap-4">
+                        {result.decision === 'APPLY' && (
+                            <button className="flex items-center gap-2 px-6 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all">
+                                <span>{UI_STRINGS.advisor.apply_partner}</span>
+                                <ExternalLink size={14} />
+                            </button>
+                        )}
+                     </div>
                 </div>
             ))}
             
-            <div className="flex justify-center pt-8 pb-12">
+            <div className="flex flex-col items-center gap-4 pt-4 pb-12">
+                 {isPro ? (
+                    <button onClick={handleExport} className="flex items-center gap-2 text-slate-400 hover:text-blue-500 font-bold text-xs uppercase tracking-widest transition-colors">
+                        <Download size={14} />
+                        <span>{UI_STRINGS.advisor.export_btn}</span>
+                    </button>
+                 ) : (
+                    <div className="flex items-center gap-2 text-slate-300 dark:text-slate-600 font-bold text-xs uppercase tracking-widest select-none">
+                        <Lock size={14} />
+                        <span>Export locked (Pro only)</span>
+                    </div>
+                 )}
                  <button onClick={() => { setTargetCards([]); setResults([]); setInputName(''); }} className="group px-8 py-4 bg-slate-100 dark:bg-slate-800 rounded-[2rem] text-slate-500 dark:text-slate-300 font-black text-xs uppercase tracking-widest flex items-center gap-3 transition-all hover:bg-slate-200 dark:hover:bg-slate-700">
                     <span>Start Fresh Comparison</span>
                     <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
