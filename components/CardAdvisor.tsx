@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CreditCard, MultiAdvisorResult, AdvisorDecision, CardCategory } from '../types';
 import { analyzeMultiPortfolioRecommendation } from '../services/geminiService';
 import { getDecryptedApiKey, getProStatus, getAdvisorUsage, incrementAdvisorUsage } from '../utils/storage';
@@ -22,6 +22,9 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
   const [error, setError] = useState('');
   const [decryptedApiKey, setDecryptedApiKey] = useState<string | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] = useState<CardCategory>('Credit');
+  
+  // Filter out expired cards
+  const activePortfolio = useMemo(() => cards.filter(c => c.status !== 'expired'), [cards]);
   
   // Monetization State
   const [isPro, setIsPro] = useState(false);
@@ -114,7 +117,7 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
         return;
       }
 
-      const res = await analyzeMultiPortfolioRecommendation(cardsToAnalyze, cards, apiKey);
+      const res = await analyzeMultiPortfolioRecommendation(cardsToAnalyze, activePortfolio, apiKey);
       if (res && res.length > 0) {
         setResults(res);
         // Clear input state only on success
@@ -217,7 +220,7 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
              </div>
           </div>
           
-          {cards.length === 0 && (
+          {activePortfolio.length === 0 && (
              <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/10 text-amber-600 dark:text-amber-400 rounded-2xl border border-amber-100 dark:border-amber-900/30">
                 <AlertTriangle size={18} className="shrink-0" />
                 <p className="text-xs font-bold">{UI_STRINGS.advisor.empty_vault_warning}</p>

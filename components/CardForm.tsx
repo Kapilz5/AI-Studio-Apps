@@ -1,8 +1,10 @@
+
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
-import { fetchCardBenefits } from '../services/geminiService';
+import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
 import { getDecryptedApiKey } from '../utils/storage';
-import { Sparkles, Loader2, X, Camera, CheckCircle2, Hash, Lock, ShieldAlert, Zap, Search } from 'lucide-react';
+import { Sparkles, Loader2, X, Camera, CheckCircle2, AlertCircle, Hash, Lock, ShieldAlert, Zap, Search, CalendarOff } from 'lucide-react';
 import CardScanner from './CardScanner';
 import CardNameInput from './CardNameInput';
 
@@ -23,6 +25,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingBenefits, setPendingBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
   const [decryptedApiKey, setDecryptedApiKey] = useState<string | undefined>(undefined);
+  const [isManualExpired, setIsManualExpired] = useState(false);
   
   const [formData, setFormData] = useState<CardFormData>({
     name: '',
@@ -39,7 +42,8 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     waiverCondition: '',
     waiverTarget: 0,
     currentSpend: 0,
-    bestOffer: ''
+    bestOffer: '',
+    status: 'active'
   });
 
   const [isFetching, setIsFetching] = useState(false);
@@ -72,9 +76,26 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         waiverCondition: initialData.waiverCondition,
         waiverTarget: initialData.waiverTarget,
         currentSpend: initialData.currentSpend,
-        bestOffer: initialData.bestOffer || ''
+        bestOffer: initialData.bestOffer || '',
+        status: initialData.status || 'active'
       });
       setFetchedBenefits(initialData.benefits);
+      
+      // Determine if manually expired based on status
+      if (initialData.status === 'expired') {
+         // Check if it's naturally expired
+         const now = new Date();
+         const currentYear = now.getFullYear() % 100;
+         const currentMonth = now.getMonth() + 1;
+         const expYear = initialData.expiryYear % 100;
+         
+         const isNaturallyExpired = expYear < currentYear || (expYear === currentYear && initialData.expiryMonth < currentMonth);
+         
+         // If expired but date is valid, assume manual
+         if (!isNaturallyExpired) {
+             setIsManualExpired(true);
+         }
+      }
     }
   }, [initialData]);
 
@@ -168,13 +189,20 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     const last4 = cleanNum.length >= 4 ? cleanNum.slice(-4) : formData.last4;
     const finalYear = formData.expiryYear < 100 ? 2000 + formData.expiryYear : formData.expiryYear;
 
+    // Status Logic
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const isDateExpired = finalYear < currentYear || (finalYear === currentYear && formData.expiryMonth < currentMonth);
+    const finalStatus = isManualExpired || isDateExpired ? 'expired' : 'active';
+
     const benefitsWithIds: Benefit[] = fetchedBenefits.map((b, i) => ({
       ...b,
       id: (b as any).id || `${Date.now()}-${i}`,
       category: b.category as any
     }));
 
-    onSave({ ...formData, expiryYear: finalYear, last4 }, benefitsWithIds);
+    onSave({ ...formData, expiryYear: finalYear, last4, status: finalStatus }, benefitsWithIds);
   };
 
   return (
@@ -330,39 +358,47 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Exp Month</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="12"
-                  required
-                  placeholder="MM"
-                  value={formData.expiryMonth}
-                  onChange={e => {
-                    const val = Math.min(12, Math.max(1, Number(e.target.value)));
-                    setFormData({ ...formData, expiryMonth: isNaN(val) ? 1 : val });
-                  }}
-                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-3">Exp Year</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="99"
-                  required
-                  placeholder="YY"
-                  value={formData.expiryYear}
-                  onChange={e => {
-                    const val = Number(e.target.value);
-                    setFormData({ ...formData, expiryYear: isNaN(val) ? 2028 : val });
-                  }}
-                  className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
-                />
-              </div>
+            <div className="md:col-span-2">
+               <div className="flex items-center justify-between mb-3">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Expiry Date</label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={isManualExpired} 
+                        onChange={e => setIsManualExpired(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className={`text-[10px] font-bold uppercase tracking-widest ${isManualExpired ? 'text-rose-500' : 'text-slate-400'}`}>Already Expired</span>
+                  </label>
+               </div>
+               <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="number"
+                    min="1"
+                    max="12"
+                    required
+                    placeholder="MM"
+                    value={formData.expiryMonth}
+                    onChange={e => {
+                      const val = Math.min(12, Math.max(1, Number(e.target.value)));
+                      setFormData({ ...formData, expiryMonth: isNaN(val) ? 1 : val });
+                    }}
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    required
+                    placeholder="YY"
+                    value={formData.expiryYear}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      setFormData({ ...formData, expiryYear: isNaN(val) ? 2028 : val });
+                    }}
+                    className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none font-bold"
+                  />
+               </div>
             </div>
 
             <div>

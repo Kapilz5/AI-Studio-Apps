@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2, Lightbulb } from 'lucide-react';
+import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2, Lightbulb, ChevronDown } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
 import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod, removeNotifiedFlag, getLastSeenVersion, setLastSeenVersion, APP_VERSION } from './utils/storage';
 import CardItem from './components/CardItem';
@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('none');
   const [notificationPeriod, setNotificationPeriodState] = useState(2);
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  const [showExpiredSection, setShowExpiredSection] = useState(false);
   
   const [isAppLocked, setIsAppLocked] = useState(true);
   const [isSetupRequired, setIsSetupRequired] = useState(false);
@@ -131,7 +132,7 @@ const App: React.FC = () => {
   // Effect to run notification checks and version check when app is unlocked
   useEffect(() => {
     if (!isAppLocked && masterKey) {
-        checkAndNotifyForExpiringCards(cards, notificationPeriod);
+        checkAndNotifyForExpiringCards(cards.filter(c => c.status !== 'expired'), notificationPeriod);
 
         // Check for updates
         const checkVersion = async () => {
@@ -150,7 +151,37 @@ const App: React.FC = () => {
   const handleUnlockSuccess = useCallback((key: Uint8Array, decryptedCards?: CreditCard[]) => {
     setMasterKey(key);
     isUnlockedRef.current = true;
-    if (decryptedCards) setCards(decryptedCards);
+    
+    if (decryptedCards) {
+        // Automatic Expiry Transition Check on Unlock
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+        let hasChanges = false;
+
+        const processedCards = decryptedCards.map(c => {
+            // Ensure status property exists for legacy cards
+            const currentStatus = c.status || 'active';
+            
+            if (currentStatus === 'expired') return { ...c, status: 'expired' as const };
+
+            // Check if it has crossed expiry date
+            const isExpiredDate = c.expiryYear < currentYear || (c.expiryYear === currentYear && c.expiryMonth < currentMonth);
+            
+            if (isExpiredDate) {
+                hasChanges = true;
+                return { ...c, status: 'expired' as const };
+            }
+            return { ...c, status: currentStatus };
+        });
+
+        setCards(processedCards);
+        
+        if (hasChanges) {
+            saveCards(processedCards, key);
+        }
+    }
+    
     setIsAppLocked(false);
     setIsSetupRequired(false);
   }, []);
@@ -194,14 +225,18 @@ const App: React.FC = () => {
 
   const handleEditCard = (card: CreditCard) => { setEditingCard(card); setIsFormOpen(true); };
 
-  const totalLimit = useMemo(() => cards.reduce((sum, c) => sum + (Number(c.creditLimit) || 0), 0), [cards]);
+  // Computed lists
+  const activeCards = useMemo(() => cards.filter(c => c.status !== 'expired'), [cards]);
+  const expiredCards = useMemo(() => cards.filter(c => c.status === 'expired'), [cards]);
+
+  const totalLimit = useMemo(() => activeCards.reduce((sum, c) => sum + (Number(c.creditLimit) || 0), 0), [activeCards]);
 
   const nearExpiryInfo = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
 
-    const matches = cards.filter(card => {
+    const matches = activeCards.filter(card => {
         const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
         return monthDiff >= 0 && monthDiff <= notificationPeriod;
     });
@@ -211,17 +246,17 @@ const App: React.FC = () => {
       sampleName: matches.length === 1 ? matches[0].name : null,
       cards: matches
     };
-  }, [cards, notificationPeriod]);
+  }, [activeCards, notificationPeriod]);
 
   const furthestExpiryInfo = useMemo(() => {
-    if (cards.length === 0) return null;
-    const sorted = [...cards].sort((a, b) => {
+    if (activeCards.length === 0) return null;
+    const sorted = [...activeCards].sort((a, b) => {
       if (a.expiryYear !== b.expiryYear) return b.expiryYear - a.expiryYear;
       return b.expiryMonth - a.expiryMonth;
     });
     
     const maxCard = sorted[0];
-    const tiedCards = cards.filter(c => c.expiryYear === maxCard.expiryYear && c.expiryMonth === maxCard.expiryMonth);
+    const tiedCards = activeCards.filter(c => c.expiryYear === maxCard.expiryYear && c.expiryMonth === maxCard.expiryMonth);
     
     return {
       count: tiedCards.length,
@@ -231,10 +266,10 @@ const App: React.FC = () => {
       sampleId: maxCard.id,
       cards: tiedCards
     };
-  }, [cards]);
+  }, [activeCards]);
 
-  const sortedCards = useMemo(() => {
-    let filtered = cards;
+  const sortedActiveCards = useMemo(() => {
+    let filtered = activeCards;
     
     if (searchTerm) {
       filtered = filtered.filter(c => 
@@ -258,7 +293,15 @@ const App: React.FC = () => {
       }
       return Number(b.id) - Number(a.id);
     });
-  }, [cards, searchTerm, sortOrder, activeFilter, nearExpiryInfo, furthestExpiryInfo]);
+  }, [activeCards, searchTerm, sortOrder, activeFilter, nearExpiryInfo, furthestExpiryInfo]);
+
+  const sortedExpiredCards = useMemo(() => {
+      // Always sort expired cards by date (most recently expired first)
+      return [...expiredCards].sort((a, b) => {
+          if (a.expiryYear !== b.expiryYear) return b.expiryYear - a.expiryYear;
+          return b.expiryMonth - a.expiryMonth;
+      });
+  }, [expiredCards]);
 
   const toggleFilter = (filter: ActiveFilter) => {
     setActiveFilter(prev => prev === filter ? 'none' : filter);
@@ -345,8 +388,8 @@ const App: React.FC = () => {
                   <div className="w-10 h-10 bg-blue-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
                     <Layers size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Vault Capacity</p>
-                  <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">{cards.length} <span className="text-sm text-slate-400 font-bold tracking-normal">Cards</span></p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Vault</p>
+                  <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">{activeCards.length} <span className="text-sm text-slate-400 font-bold tracking-normal">Cards</span></p>
                 </div>
               </div>
               
@@ -402,7 +445,7 @@ const App: React.FC = () => {
                   <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-emerald-500/20">
                     <BarChart3 size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Portfolio Limit</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Limit</p>
                   <p className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">₹{totalLimit >= 100000 ? `${(totalLimit / 100000).toFixed(1)}L` : totalLimit.toLocaleString()}</p>
                 </div>
               </div>
@@ -443,38 +486,79 @@ const App: React.FC = () => {
                </div>
             </div>
 
-            {sortedCards.length === 0 ? (
-               <div className="py-24 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-inner">
-                  <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800/50 text-slate-300 rounded-full flex items-center justify-center mb-6">
-                    {activeFilter !== 'none' ? <AlertTriangle size={48} /> : <CardIcon size={48} />}
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {activeFilter !== 'none' ? 'No Filtered Cards' : 'Your Vault is Clean'}
+            {/* Active Cards Section */}
+            <div>
+               <div className="flex items-center justify-between mb-6 px-2">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-3">
+                     <span>Active Cards</span>
+                     <span className="bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full text-xs text-slate-500">{sortedActiveCards.length}</span>
                   </h3>
-                  <p className="text-slate-500 dark:text-slate-400 mt-2 mb-8 font-medium max-w-xs mx-auto text-sm">
-                    {activeFilter !== 'none' ? 'Currently no cards match the selected filter criteria.' : 'Start your secure card collection by adding your first credit or debit card.'}
-                  </p>
-                  <div className="flex gap-4">
-                    {activeFilter !== 'none' && <button onClick={() => setActiveFilter('none')} className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all">View All</button>}
-                    <button onClick={() => setIsFormOpen(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-500/30 active:scale-95 transition-all">
-                      Add Card
-                    </button>
-                  </div>
                </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {sortedCards.map(card => (
-                  <div key={card.id} id={`card-${card.id}`} className={`transition-all duration-700 ${highlightedCardId === card.id ? 'ring-8 ring-purple-500/20 scale-105 z-20 rounded-[2.5rem]' : ''}`}>
-                    <CardItem 
-                      card={card} 
-                      onDelete={handleDeleteCard} 
-                      onEdit={handleEditCard} 
-                      onUpdateSpend={handleUpdateSpend}
-                      notificationPeriod={notificationPeriod} 
-                    />
+
+               {sortedActiveCards.length === 0 && activeFilter === 'none' && !searchTerm ? (
+                  <div className="py-16 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-inner">
+                      <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 text-slate-300 rounded-full flex items-center justify-center mb-4">
+                        <CardIcon size={32} />
+                      </div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">No Active Cards</h3>
+                      <p className="text-slate-500 dark:text-slate-400 mt-2 mb-6 font-medium max-w-xs mx-auto text-sm">
+                        Add a new card to start building your vault.
+                      </p>
+                      <button onClick={() => setIsFormOpen(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-500/30 active:scale-95 transition-all">
+                        Add First Card
+                      </button>
                   </div>
-                ))}
-              </div>
+               ) : sortedActiveCards.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 font-bold text-sm">No active cards match your filter.</div>
+               ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {sortedActiveCards.map(card => (
+                      <div key={card.id} id={`card-${card.id}`} className={`transition-all duration-700 ${highlightedCardId === card.id ? 'ring-8 ring-purple-500/20 scale-105 z-20 rounded-[2.5rem]' : ''}`}>
+                        <CardItem 
+                          card={card} 
+                          onDelete={handleDeleteCard} 
+                          onEdit={handleEditCard} 
+                          onUpdateSpend={handleUpdateSpend}
+                          notificationPeriod={notificationPeriod} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+               )}
+            </div>
+
+            {/* Expired Cards Section */}
+            {expiredCards.length > 0 && (
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-8">
+                    <button 
+                        onClick={() => setShowExpiredSection(!showExpiredSection)}
+                        className="w-full flex items-center justify-between mb-6 group"
+                    >
+                        <h3 className="text-lg font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest flex items-center gap-3 group-hover:text-slate-600 dark:group-hover:text-slate-400 transition-colors">
+                            <span>Expired Cards</span>
+                            <span className="bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full text-xs text-slate-400 dark:text-slate-600">{expiredCards.length}</span>
+                        </h3>
+                        <div className={`p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 transition-transform duration-300 ${showExpiredSection ? 'rotate-180' : ''}`}>
+                            <ChevronDown size={20} />
+                        </div>
+                    </button>
+                    
+                    {showExpiredSection && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in slide-in-from-top-4 duration-300">
+                            {sortedExpiredCards.map(card => (
+                                <div key={card.id} className="opacity-75 hover:opacity-100 transition-opacity">
+                                    <CardItem 
+                                        card={card} 
+                                        onDelete={handleDeleteCard} 
+                                        onEdit={handleEditCard} 
+                                        onUpdateSpend={handleUpdateSpend}
+                                        notificationPeriod={0} // Disable expiry warning for already expired
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             )}
           </div>
         ) : viewMode === 'Advisor' ? (

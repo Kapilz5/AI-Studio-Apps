@@ -1,7 +1,8 @@
 
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CreditCard as CardType } from '../types';
-import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCircle, Eye, EyeOff, Lock, Clock, Plus, X, Check, PartyPopper, Copy, ClipboardCheck } from 'lucide-react';
+import { Trash2, TrendingUp, Edit3, Tag, CreditCard as LucideCreditCard, AlertCircle, Eye, EyeOff, Lock, Clock, Plus, X, Check, PartyPopper, Copy, ClipboardCheck, CalendarOff } from 'lucide-react';
 import SecurityAuth from './SecurityAuth';
 import { UI_STRINGS } from '../locales/en';
 
@@ -27,6 +28,8 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
   const currentX = useRef(0);
   const swipeThreshold = -60;
   const maxSwipe = -120;
+
+  const isExpired = card.status === 'expired';
 
   // 1. Anti-Screenshot / Privacy Blur
   // Immediately hide sensitive data if the app goes to background (user switches apps, opens task switcher)
@@ -56,6 +59,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
 
   // FIX: Match month-based difference logic with App.tsx
   const expiring = useMemo(() => {
+    if (isExpired) return false; // Don't show "Expiring Soon" if already expired
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
@@ -63,7 +67,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     
     const monthDiff = (card.expiryYear - currentYear) * 12 + (card.expiryMonth - currentMonth);
     return monthDiff >= 0 && monthDiff <= period;
-  }, [card.expiryMonth, card.expiryYear, notificationPeriod]);
+  }, [card.expiryMonth, card.expiryYear, notificationPeriod, isExpired]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -172,7 +176,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
   };
 
   return (
-    <div className="relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-300 group text-left">
+    <div className={`relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-300 group text-left ${isExpired ? 'opacity-70 grayscale-[0.8]' : ''}`}>
       {showAuthModal && (
         <SecurityAuth 
             mode="verify" 
@@ -204,15 +208,24 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
         onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd}
       >
         <div className="relative transition-all duration-500 flex flex-col">
-          <div className={`card-gradient relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${expiring ? 'ring-4 ring-rose-400/80 shadow-rose-500/40 scale-[1.02]' : ''}`}>
-            {expiring && (
+          <div className={`relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${isExpired ? 'bg-slate-500 border border-slate-400' : 'card-gradient'} ${expiring ? 'ring-4 ring-rose-400/80 shadow-rose-500/40 scale-[1.02]' : ''}`}>
+            
+            {isExpired && (
+                <div className="absolute top-4 left-4 bg-slate-800 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest z-20 flex items-center gap-1 shadow-lg border border-white/20">
+                    <CalendarOff size={10} />
+                    <span>Expired</span>
+                </div>
+            )}
+
+            {!isExpired && expiring && (
               <div className="absolute top-4 left-4 bg-rose-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest z-20 flex items-center gap-1 shadow-lg animate-pulse">
                 <AlertCircle size={10} />
                 <span>Expiring Soon</span>
               </div>
             )}
+
             <div className="flex justify-between items-start z-10">
-              <div className="w-14 h-10 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-lg shadow-inner opacity-90" />
+              <div className={`w-14 h-10 rounded-lg shadow-inner opacity-90 ${isExpired ? 'bg-slate-600' : 'bg-gradient-to-br from-yellow-300 to-yellow-600'}`} />
               <div className="flex flex-col items-end gap-3">
                 <span className="text-[10px] font-black bg-white/10 px-2 py-1 rounded-lg uppercase tracking-widest backdrop-blur-md border border-white/10">{card.cardCategory || 'CARD'}</span>
                 <button 
@@ -260,13 +273,13 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
               </div>
             </div>
           </div>
-          {card.bestOffer && (
+          {card.bestOffer && !isExpired && (
             <div className="bg-amber-50 dark:bg-amber-900/30 mx-8 -mt-4 p-4 rounded-b-[1.5rem] border-x border-b border-amber-100 dark:border-amber-900/50 shadow-sm z-0 flex items-center gap-3">
               <Tag size={14} className="text-amber-600 shrink-0" />
               <p className="text-[11px] font-black text-amber-900 dark:text-amber-100 leading-tight line-clamp-1">{card.bestOffer}</p>
             </div>
           )}
-          {card.waiverTarget > 0 && (
+          {card.waiverTarget > 0 && !isExpired && (
             <div className={`mx-6 mt-3 p-6 rounded-[2rem] shadow-lg border z-0 transition-all ${isWaived ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-100' : 'bg-white dark:bg-slate-900 border-slate-100'}`}>
               <div className="flex justify-between items-center mb-3">
                 <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">{isWaived ? 'Fee Waived!' : 'Waiver Target'}</span>

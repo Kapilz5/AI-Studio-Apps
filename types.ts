@@ -27,6 +27,7 @@ export interface CreditCard {
   currentSpend: number;
   bestOffer?: string;
   benefits: Benefit[];
+  status: 'active' | 'expired';
 }
 
 export interface CardFormData {
@@ -45,6 +46,7 @@ export interface CardFormData {
   waiverTarget: number;
   currentSpend: number;
   bestOffer?: string;
+  status: 'active' | 'expired';
 }
 
 export interface BackupPayload {

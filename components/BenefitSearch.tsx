@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from 'react';
 import { CreditCard, BenefitCategory } from '../types';
 import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
@@ -49,6 +51,8 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<BenefitCategory | 'All'>('All');
 
+  const activeCards = useMemo(() => cards.filter(c => c.status !== 'expired'), [cards]);
+
   const filteredBenefits = useMemo(() => {
     const results: { cardName: string; category: BenefitCategory; detail: string; cardId: string; cardType?: string }[] = [];
     
@@ -67,7 +71,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
       });
     }
 
-    cards.forEach(card => {
+    activeCards.forEach(card => {
       card.benefits.forEach(benefit => {
         const matchesCategory = selectedCategory === 'All' || benefit.category === selectedCategory;
         
@@ -96,14 +100,14 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
     });
     
     return results;
-  }, [cards, searchTerm, selectedCategory]);
+  }, [activeCards, searchTerm, selectedCategory]);
 
   const bestCardForSelected = useMemo(() => {
-    if (selectedCategory === 'All' || cards.length === 0) return null;
+    if (selectedCategory === 'All' || activeCards.length === 0) return null;
     
     const relevantBenefits: { card: CreditCard, benefit: any, score: number }[] = [];
     
-    cards.forEach(card => {
+    activeCards.forEach(card => {
       const b = card.benefits.find(b => b.category === selectedCategory);
       if (b) {
         let score = 1;
@@ -117,7 +121,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
     });
 
     return relevantBenefits.sort((a, b) => b.score - a.score)[0] || null;
-  }, [cards, selectedCategory]);
+  }, [activeCards, selectedCategory]);
 
   const renderBrandLogo = (type?: string) => {
     const t = (type || '').toLowerCase();
