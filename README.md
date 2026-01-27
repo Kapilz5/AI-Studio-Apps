@@ -18,13 +18,3 @@ View your app in AI Studio: https://ai.studio/apps/drive/1LmcQjY-NmBgs1UWDzwNYS-
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
-
-## ✅ Phase 1 – Stable MVP
-
-- AI card autocomplete working
-- Advisor apply/skip logic working
-- Local encrypted storage
-- Manual fallback supported
-- Debit / Credit separation fixed
-
-Status: COMPLETE

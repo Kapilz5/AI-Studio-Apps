@@ -24,7 +24,8 @@ if (!container) {
 
     if ('serviceWorker' in navigator && !isPreviewEnv) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
+        // Register with root scope to control the entire app including start_url: "/"
+        navigator.serviceWorker.register('./sw.js', { scope: '/' })
           .then(registration => {
             console.log('SW registered successfully:', registration.scope);
           })
