@@ -59,6 +59,9 @@ export interface MultiAdvisorResult {
   card: string;
   decision: AdvisorDecision;
   reason: string;
-  covered: string[];
   newValue: string[];
+  alreadyCovered: {
+    benefit: string;
+    coveredBy: string[];
+  }[];
 }

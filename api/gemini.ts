@@ -88,7 +88,6 @@ export default async function handler(req: any, res: any) {
     let apiKey = "";
     try {
       // Decode Base64 safely (handles Node and Browser environments)
-      // FIX: Access Buffer safely through globalThis to avoid type errors when node types are missing
       const BufferConstructor = (globalThis as any).Buffer;
       if (BufferConstructor) {
         apiKey = BufferConstructor.from(userKeyB64, 'base64').toString('utf-8').trim();
@@ -109,14 +108,18 @@ export default async function handler(req: any, res: any) {
     const model = 'gemini-2.5-flash';
 
     let promptParts: any[] = [];
-    let schemaType: any = undefined; // For responseSchema if needed (Using text parsing for robustness across models)
+    let schemaType: any = undefined;
 
     switch (mode) {
       case 'suggest': {
         const text = payload?.text || "";
+        const category = payload?.productTier || "Credit";
+        
         promptParts = [{
-          text: `User typed: "${text}". Return ONLY a JSON array of 5-10 real Indian credit/debit card product names matching this text. 
+          text: `User typed: "${text}". Product type: "${category}". 
+          Return ONLY a JSON array of 5-10 real Indian ${category} card product names matching this text. 
           Focus on popular banks like HDFC, SBI, ICICI, Axis, Amex, IDFC, etc.
+          Do NOT include ${category === 'Credit' ? 'Debit' : 'Credit'} cards.
           No extra text. Example format: ["HDFC Millennia", "SBI SimplyClick"]`
         }];
         break;
@@ -165,7 +168,12 @@ export default async function handler(req: any, res: any) {
               "decision": "APPLY" | "SKIP" | "OPTIONAL" | "MANUAL",
               "reason": "Clear, short explanation of value vs redundancy.",
               "newValue": ["List of ONLY the net-new benefits gained"],
-              "covered": ["List of benefits already covered by portfolio"]
+              "alreadyCovered": [
+                {
+                  "benefit": "Description of benefit already covered",
+                  "coveredBy": ["Name of existing card(s) providing this"]
+                }
+              ]
             }
           ]`
         }];
@@ -206,21 +214,18 @@ export default async function handler(req: any, res: any) {
       contents: { parts: promptParts },
     });
 
-    // FIX: Use .text property instead of method as per SDK guidelines
     const text = response.text || "";
     const data = cleanJSON(text);
 
     if (data) {
       return res.status(200).json({ success: true, data });
     } else {
-      // If JSON parsing fails but we got text, it might be an error or hallucination
       console.warn("Gemini returned non-JSON:", text.substring(0, 100));
       return res.status(200).json({ success: false, message: "AI response format error" });
     }
 
   } catch (error: any) {
     console.error("Gemini API Error:", error.message || error);
-    // Never throw 500 to client, always return structured failure
     return res.status(200).json({ 
       success: false, 
       message: "AI temporarily unavailable" 

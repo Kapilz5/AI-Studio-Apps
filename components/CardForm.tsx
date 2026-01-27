@@ -285,6 +285,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
                   apiKey={decryptedApiKey}
                   placeholder={`e.g. HDFC Millennia`}
                   className="flex-grow"
+                  category={formData.cardCategory}
                 />
                 
                 <button

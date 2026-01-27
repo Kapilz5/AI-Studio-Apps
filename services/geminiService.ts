@@ -62,14 +62,23 @@ export const fetchCardBenefits = async (cardName: string, category: CardCategory
   }
 };
 
-export const getCardSuggestions = async (userInput: string, apiKey: string): Promise<{ suggestions: string[], error?: string }> => {
+export const getCardSuggestions = async (userInput: string, apiKey: string, category: CardCategory = 'Credit'): Promise<{ suggestions: string[], error?: string }> => {
   try {
     const data = await callGeminiAPI('suggest', { 
-      text: sanitizeInput(userInput) 
+      text: sanitizeInput(userInput),
+      productTier: category 
     }, apiKey);
     
     if (Array.isArray(data)) {
-      const unique = Array.from(new Set(data)).slice(0, 10) as string[];
+      // Client-side safety filter
+      const filtered = data.filter((item: string) => {
+        const lowerItem = item.toLowerCase();
+        if (category === 'Debit' && lowerItem.includes('credit')) return false;
+        if (category === 'Credit' && lowerItem.includes('debit')) return false;
+        return true;
+      });
+
+      const unique = Array.from(new Set(filtered)).slice(0, 10) as string[];
       return { suggestions: unique };
     }
     return { suggestions: [] };

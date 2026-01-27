@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { getCardSuggestions } from '../services/geminiService';
+import { CardCategory } from '../types';
 
 interface CardNameInputProps {
   value: string;
@@ -12,6 +14,7 @@ interface CardNameInputProps {
   autoFocus?: boolean;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   disabled?: boolean;
+  category?: CardCategory;
 }
 
 const CardNameInput: React.FC<CardNameInputProps> = ({
@@ -23,7 +26,8 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
   className = '',
   autoFocus,
   onKeyDown,
-  disabled
+  disabled,
+  category = 'Credit'
 }) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -75,7 +79,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
       setError(''); // Clear any previous error before new attempt
       
       try {
-        const result = await getCardSuggestions(value, apiKey);
+        const result = await getCardSuggestions(value, apiKey, category as CardCategory);
         if (result.suggestions && result.suggestions.length > 0) {
           setSuggestions(result.suggestions);
           setError('');
@@ -96,7 +100,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [value, apiKey, showDropdown]);
+  }, [value, apiKey, showDropdown, category]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
@@ -150,7 +154,7 @@ const CardNameInput: React.FC<CardNameInputProps> = ({
             <>
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700 shrink-0">
                 <Sparkles size={12} className="text-blue-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">AI Suggestions</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">AI Suggestions ({category})</span>
               </div>
               <div className="overflow-y-auto custom-scrollbar">
                 {suggestions.map((s, idx) => (

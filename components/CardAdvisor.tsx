@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
-import { CreditCard, MultiAdvisorResult, AdvisorDecision } from '../types';
+import { CreditCard, MultiAdvisorResult, AdvisorDecision, CardCategory } from '../types';
 import { analyzeMultiPortfolioRecommendation } from '../services/geminiService';
 import { getDecryptedApiKey } from '../utils/storage';
-import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, BrainCircuit, X, Plus, BadgeHelp, Play } from 'lucide-react';
+import { Lightbulb, ThumbsUp, ThumbsDown, Scale, Loader2, ArrowRight, AlertTriangle, PlusCircle, CheckCircle2, BrainCircuit, X, Plus, BadgeHelp, Play, Shield } from 'lucide-react';
 import { UI_STRINGS } from '../locales/en';
 import CardNameInput from './CardNameInput';
 
@@ -20,6 +19,7 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
   const [results, setResults] = useState<MultiAdvisorResult[]>([]);
   const [error, setError] = useState('');
   const [decryptedApiKey, setDecryptedApiKey] = useState<string | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<CardCategory>('Credit');
 
   // Decrypt API key on mount for suggestions
   useEffect(() => {
@@ -121,7 +121,23 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
       {/* Input Section */}
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 space-y-6">
           <div className="space-y-4">
-             <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{UI_STRINGS.advisor.input_label}</label>
+             <div className="flex items-center justify-between">
+               <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{UI_STRINGS.advisor.input_label}</label>
+               <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+                  <button 
+                    onClick={() => setSelectedCategory('Credit')}
+                    className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-md transition-all ${selectedCategory === 'Credit' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                  >
+                    Credit
+                  </button>
+                  <button 
+                    onClick={() => setSelectedCategory('Debit')}
+                    className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-md transition-all ${selectedCategory === 'Debit' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                  >
+                    Debit
+                  </button>
+               </div>
+             </div>
              
              {/* Target Chips */}
              {targetCards.length > 0 && (
@@ -144,6 +160,7 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
                     placeholder={targetCards.length > 0 ? UI_STRINGS.advisor.add_another : UI_STRINGS.advisor.input_placeholder}
                     className="flex-grow"
                     onKeyDown={(e) => e.key === 'Enter' && handleAddInput(e)}
+                    category={selectedCategory}
                 />
                 <button 
                     onClick={() => handleAddInput()}
@@ -240,21 +257,37 @@ const CardAdvisor: React.FC<CardAdvisorProps> = ({ cards, masterKey, onOpenSetti
                                 ) : <p className="text-xs text-slate-400 italic px-2">No unique benefits found.</p>}
                              </div>
 
-                             {/* Covered */}
+                             {/* Covered / Already Owned */}
                              <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-slate-400">
-                                    <CheckCircle2 size={18} />
+                                <div className="flex items-center gap-2 text-amber-500">
+                                    <Shield size={18} />
                                     <h4 className="font-black uppercase text-[10px] tracking-[0.2em]">{UI_STRINGS.advisor.section_covered}</h4>
                                 </div>
-                                {result.covered && result.covered.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2 opacity-60">
-                                        {result.covered.map((val, i) => (
-                                            <div key={i} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-bold">
-                                                {val}
+                                {result.alreadyCovered && result.alreadyCovered.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {result.alreadyCovered.map((item, i) => (
+                                            <div key={i} className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                                                <p className="text-xs font-bold text-amber-900 dark:text-amber-100 mb-1 leading-tight">{item.benefit}</p>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {item.coveredBy.map((card, idx) => (
+                                                        <span key={idx} className="text-[9px] font-black uppercase tracking-wider bg-white dark:bg-slate-900/50 px-2 py-1 rounded text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-800">{card}</span>
+                                                    ))}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
-                                ) : <p className="text-xs text-slate-400 italic px-2">No significant overlaps.</p>}
+                                ) : (
+                                  // Fallback for older API responses or no overlap
+                                  result.covered && result.covered.length > 0 ? (
+                                      <div className="flex flex-wrap gap-2 opacity-60">
+                                          {result.covered.map((val, i) => (
+                                              <div key={i} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-bold">
+                                                  {val}
+                                              </div>
+                                          ))}
+                                      </div>
+                                  ) : <p className="text-xs text-slate-400 italic px-2">No significant overlaps.</p>
+                                )}
                              </div>
                         </div>
                      ) : (
