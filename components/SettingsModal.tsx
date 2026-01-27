@@ -199,7 +199,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
   };
 
   const handleImportClick = () => {
-    fileInputRef.current?.click();
+    // Explicitly click the hidden input when the div is clicked
+    if (fileInputRef.current) {
+        fileInputRef.current.click();
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -348,6 +351,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                              </>
                            )}
                         </div>
+                        <p className="text-[10px] text-slate-400 font-medium text-center">Supported format: .bin backup files</p>
+                        {/* Hidden file input placed inside the conditional render to ensure ref exists */}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".bin"
+                            onChange={handleFileChange}
+                        />
                       </div>
                     )}
                     
