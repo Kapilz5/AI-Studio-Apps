@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
@@ -25,7 +24,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingBenefits, setPendingBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
   const [decryptedApiKey, setDecryptedApiKey] = useState<string | undefined>(undefined);
-  const [isManualExpired, setIsManualExpired] = useState(false);
   
   const [formData, setFormData] = useState<CardFormData>({
     name: '',
@@ -80,22 +78,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         status: initialData.status || 'active'
       });
       setFetchedBenefits(initialData.benefits);
-      
-      // Determine if manually expired based on status
-      if (initialData.status === 'expired') {
-         // Check if it's naturally expired
-         const now = new Date();
-         const currentYear = now.getFullYear() % 100;
-         const currentMonth = now.getMonth() + 1;
-         const expYear = initialData.expiryYear % 100;
-         
-         const isNaturallyExpired = expYear < currentYear || (expYear === currentYear && initialData.expiryMonth < currentMonth);
-         
-         // If expired but date is valid, assume manual
-         if (!isNaturallyExpired) {
-             setIsManualExpired(true);
-         }
-      }
     }
   }, [initialData]);
 
@@ -194,7 +176,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     const isDateExpired = finalYear < currentYear || (finalYear === currentYear && formData.expiryMonth < currentMonth);
-    const finalStatus = isManualExpired || isDateExpired ? 'expired' : 'active';
+    const finalStatus = isDateExpired ? 'expired' : 'active';
 
     const benefitsWithIds: Benefit[] = fetchedBenefits.map((b, i) => ({
       ...b,
@@ -361,15 +343,6 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
             <div className="md:col-span-2">
                <div className="flex items-center justify-between mb-3">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Expiry Date</label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={isManualExpired} 
-                        onChange={e => setIsManualExpired(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className={`text-[10px] font-bold uppercase tracking-widest ${isManualExpired ? 'text-rose-500' : 'text-slate-400'}`}>Already Expired</span>
-                  </label>
                </div>
                <div className="grid grid-cols-2 gap-4">
                   <input
