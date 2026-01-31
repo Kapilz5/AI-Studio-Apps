@@ -24,6 +24,10 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
   const [revealTimeLeft, setRevealTimeLeft] = useState(0);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
   
+  // 3D Tilt State
+  const [rotate, setRotate] = useState({ x: 0, y: 0 });
+  const cardRef = useRef<HTMLDivElement>(null);
+  
   const startX = useRef(0);
   const currentX = useRef(0);
   const swipeThreshold = -60;
@@ -107,6 +111,29 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     else setSwipeOffset(0);
   };
 
+  // 3D Tilt Logic
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current || isExpired || isDragging) return;
+    
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    const maxRotate = 8;
+    
+    const rotateX = ((y - centerY) / centerY) * -maxRotate;
+    const rotateY = ((x - centerX) / centerX) * maxRotate;
+    
+    setRotate({ x: rotateX, y: rotateY });
+  };
+
+  const handleMouseLeave = () => {
+    setRotate({ x: 0, y: 0 });
+  };
+
   const handleToggleSensitive = () => {
     if (isSensitiveVisible) {
       // Manual Hide
@@ -178,7 +205,11 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
   };
 
   return (
-    <div className={`relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-300 group text-left ${isExpired ? 'opacity-80 grayscale-[0.6]' : ''}`}>
+    <div 
+        className={`relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-300 group text-left ${isExpired ? 'opacity-80 grayscale-[0.6]' : ''}`}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+    >
       {showAuthModal && createPortal(
         <SecurityAuth 
             mode="verify" 
@@ -205,14 +236,34 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
       )}
 
       <div 
-        className={`relative z-10 transition-transform duration-300 ease-out select-none cursor-grab active:cursor-grabbing ${isDragging ? 'transition-none' : ''}`}
+        className={`relative z-10 select-none cursor-grab active:cursor-grabbing ${isDragging ? 'transition-none' : 'transition-transform duration-300 ease-out'}`}
         style={{ transform: `translateX(${swipeOffset}px)` }}
         onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
         onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd}
       >
-        <div className="relative transition-all duration-500 flex flex-col">
-          <div className={`relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${isExpired ? 'bg-slate-500 border border-slate-400' : 'card-gradient'} ${expiring ? 'ring-4 ring-rose-400/80 shadow-rose-500/40 scale-[1.02]' : ''}`}>
+        <div className="relative transition-all duration-500 flex flex-col perspective-1000">
+          <div 
+            ref={cardRef}
+            className={`relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${isExpired ? 'bg-slate-500 border border-slate-400' : 'card-gradient'} ${expiring ? 'ring-4 ring-rose-400/80 shadow-rose-500/40 scale-[1.02]' : ''}`}
+            style={{
+                transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg)`,
+                transition: 'transform 0.1s ease-out',
+                transformStyle: 'preserve-3d'
+            }}
+          >
             
+            {/* Glare Effect */}
+            {!isExpired && (
+                <div 
+                    className="absolute inset-0 pointer-events-none z-0"
+                    style={{
+                        background: `radial-gradient(circle at ${50 - rotate.y * 3}% ${50 - rotate.x * 3}%, rgba(255,255,255,0.2) 0%, transparent 60%)`,
+                        opacity: Math.abs(rotate.x) + Math.abs(rotate.y) > 0 ? 1 : 0,
+                        transition: 'opacity 0.2s ease'
+                    }}
+                />
+            )}
+
             {/* Visual Blurred Overlay for Expired Locked State */}
             {isLockedExpired && (
                 <div className="absolute inset-0 z-20 backdrop-blur-[4px] bg-slate-900/10 flex items-end justify-end p-6 rounded-[2.5rem] transition-all duration-500">
@@ -228,13 +279,13 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
             )}
 
             {!isExpired && expiring && (
-              <div className="absolute top-4 left-4 bg-rose-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest z-20 flex items-center gap-1 shadow-lg animate-pulse">
+              <div className="absolute top-4 left-4 bg-rose-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest z-20 flex items-center gap-1 shadow-lg animate-pulse" style={{ transform: 'translateZ(20px)' }}>
                 <AlertCircle size={10} />
                 <span>Expiring Soon</span>
               </div>
             )}
 
-            <div className="flex justify-between items-start z-10">
+            <div className="flex justify-between items-start z-10" style={{ transform: 'translateZ(20px)' }}>
               <div className={`w-14 h-10 rounded-lg shadow-inner opacity-90 ${isExpired ? 'bg-slate-600' : 'bg-gradient-to-br from-yellow-300 to-yellow-600'}`} />
               <div className="flex flex-col items-end gap-3">
                 <span className="text-[10px] font-black bg-white/10 px-2 py-1 rounded-lg uppercase tracking-widest backdrop-blur-md border border-white/10">{card.cardCategory || 'CARD'}</span>
@@ -248,7 +299,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
               </div>
             </div>
             
-            <div className={`z-10 min-w-0 transition-all duration-500 ${isLockedExpired ? 'blur-[3px] opacity-60' : ''}`}>
+            <div className={`z-10 min-w-0 transition-all duration-500 ${isLockedExpired ? 'blur-[3px] opacity-60' : ''}`} style={{ transform: 'translateZ(30px)' }}>
               <div className="flex items-center gap-4 mb-3">
                 {renderNetworkLogo(card.cardType)}
                 <h3 className="text-2xl font-black truncate tracking-tight min-w-0 select-none" title={card.name}>{card.name}</h3>
@@ -268,7 +319,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
               </div>
             </div>
 
-            <div className={`flex justify-between items-end z-10 border-t border-white/10 pt-4 transition-all duration-500 ${isLockedExpired ? 'blur-[3px] opacity-60' : ''}`}>
+            <div className={`flex justify-between items-end z-10 border-t border-white/10 pt-4 transition-all duration-500 ${isLockedExpired ? 'blur-[3px] opacity-60' : ''}`} style={{ transform: 'translateZ(20px)' }}>
               <div className="flex gap-8 text-left">
                 <div>
                   <p className="text-[10px] uppercase font-black text-white/40 tracking-widest mb-1">Expires</p>
@@ -286,13 +337,13 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
             </div>
           </div>
           {card.bestOffer && !isExpired && (
-            <div className="bg-amber-50 dark:bg-amber-900/30 mx-8 -mt-4 p-4 rounded-b-[1.5rem] border-x border-b border-amber-100 dark:border-amber-900/50 shadow-sm z-0 flex items-center gap-3">
+            <div className="bg-amber-50 dark:bg-amber-900/30 mx-8 -mt-4 p-4 rounded-b-[1.5rem] border-x border-b border-amber-100 dark:border-amber-900/50 shadow-sm z-0 flex items-center gap-3 transition-transform duration-300 hover:translate-y-1">
               <Tag size={14} className="text-amber-600 shrink-0" />
               <p className="text-[11px] font-black text-amber-900 dark:text-amber-100 leading-tight line-clamp-1">{card.bestOffer}</p>
             </div>
           )}
           {card.waiverTarget > 0 && !isExpired && (
-            <div className={`mx-6 mt-3 p-6 rounded-[2rem] shadow-lg border z-0 transition-all ${isWaived ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-100' : 'bg-white dark:bg-slate-900 border-slate-100'}`}>
+            <div className={`mx-6 mt-3 p-6 rounded-[2rem] shadow-lg border z-0 transition-all duration-300 hover:shadow-xl ${isWaived ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-100' : 'bg-white dark:bg-slate-900 border-slate-100'}`}>
               <div className="flex justify-between items-center mb-3">
                 <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">{isWaived ? 'Fee Waived!' : 'Waiver Target'}</span>
                 <span className="text-xs font-black px-3 py-1 rounded-full bg-blue-50 text-blue-600">{Math.round(waiverProgress)}%</span>
@@ -307,7 +358,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
             </div>
           )}
           <div className="absolute -top-3 -right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-20">
-            <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl shadow-xl hover:bg-blue-600 hover:text-white transition-all"><Edit3 size={18} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl shadow-xl hover:bg-blue-600 hover:text-white transition-all transform hover:scale-110"><Edit3 size={18} /></button>
           </div>
         </div>
       </div>

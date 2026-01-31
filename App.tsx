@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2, Lightbulb, ChevronDown } from 'lucide-react';
 import { CreditCard, CardFormData, Benefit } from './types';
@@ -38,7 +37,6 @@ const App: React.FC = () => {
   const [showUpdateToast, setShowUpdateToast] = useState(false);
   
   const isUnlockedRef = useRef(false);
-  // FIX: Use ReturnType<typeof setTimeout> instead of NodeJS.Timeout to avoid namespace error in browser environments
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isDark, setIsDark] = useState(() => {
@@ -316,11 +314,18 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 pb-20 transition-colors duration-300">
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 pt-[env(safe-area-inset-top)]">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 pb-20 transition-colors duration-300 relative selection:bg-blue-200 dark:selection:bg-blue-900">
+      
+      {/* Background Decor */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-blue-400/20 dark:bg-blue-600/10 blur-[100px] animate-pulse-slow" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-purple-400/20 dark:bg-purple-600/10 blur-[100px] animate-pulse-slow delay-1000" />
+      </div>
+
+      <header className="sticky top-0 z-40 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 pt-[env(safe-area-inset-top)] transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 md:h-24 flex items-center justify-between gap-4">
-          <div className="flex items-center space-x-3 shrink-0">
-            <div className="w-10 h-10 md:w-12 md:h-12 card-gradient rounded-2xl shadow-xl flex items-center justify-center text-white rotate-3">
+          <div className="flex items-center space-x-3 shrink-0 group cursor-default">
+            <div className="w-10 h-10 md:w-12 md:h-12 card-gradient rounded-2xl shadow-xl flex items-center justify-center text-white rotate-3 group-hover:rotate-6 transition-transform duration-300">
               <Wallet size={24} />
             </div>
             <div className="hidden sm:block text-left">
@@ -363,29 +368,29 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2 shrink-0">
-            <button onClick={() => setIsDark(!isDark)} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl transition-all border border-slate-200 dark:border-slate-800 active:scale-95">
+            <button onClick={() => setIsDark(!isDark)} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl transition-all border border-slate-200 dark:border-slate-800 active:scale-95 hover:bg-slate-200 dark:hover:bg-slate-700">
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl transition-all border border-slate-200 dark:border-slate-800 active:scale-95">
+            <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl transition-all border border-slate-200 dark:border-slate-800 active:scale-95 hover:bg-slate-200 dark:hover:bg-slate-700">
               <UserCircle size={18} />
             </button>
-            <button onClick={() => setIsFormOpen(true)} className="p-2.5 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 active:scale-95">
+            <button onClick={() => setIsFormOpen(true)} className="p-2.5 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 active:scale-95 hover:scale-105">
               <Plus size={20} />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 relative z-10">
         {viewMode === 'Dashboard' ? (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               <div 
                 onClick={() => { setActiveFilter('none'); setSortOrder('age'); }}
-                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between group transition-all cursor-pointer active:scale-95 ${activeFilter === 'none' && sortOrder === 'age' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 ring-2 ring-blue-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}
+                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between group transition-all duration-300 cursor-pointer active:scale-95 hover:shadow-xl ${activeFilter === 'none' && sortOrder === 'age' ? 'bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/30 dark:to-slate-900 border-blue-200 dark:border-blue-800 ring-2 ring-blue-500/10' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-slate-100 dark:border-slate-800'}`}
               >
                 <div>
-                  <div className="w-10 h-10 bg-blue-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+                  <div className="w-10 h-10 bg-blue-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform duration-300">
                     <Layers size={20} />
                   </div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Vault</p>
@@ -395,7 +400,7 @@ const App: React.FC = () => {
               
               <div 
                 onClick={() => nearExpiryInfo.count > 0 && toggleFilter('near')}
-                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between relative transition-all active:scale-95 ${activeFilter === 'near' ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-500 ring-2 ring-rose-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'} ${nearExpiryInfo.count > 0 ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-700' : 'opacity-60'}`}
+                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between relative transition-all duration-300 active:scale-95 hover:shadow-xl ${activeFilter === 'near' ? 'bg-gradient-to-br from-rose-50 to-white dark:from-rose-900/30 dark:to-slate-900 border-rose-500 ring-2 ring-rose-500/10' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-slate-100 dark:border-slate-800'} ${nearExpiryInfo.count > 0 ? 'cursor-pointer hover:border-rose-300 dark:hover:border-rose-700' : 'opacity-60'}`}
               >
                 <div>
                   <div className="w-10 h-10 bg-rose-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-rose-500/20">
@@ -417,7 +422,7 @@ const App: React.FC = () => {
 
               <div 
                 onClick={() => furthestExpiryInfo && toggleFilter('furthest')}
-                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between transition-all active:scale-95 ${activeFilter === 'furthest' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500 ring-2 ring-purple-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'} ${furthestExpiryInfo ? 'cursor-pointer hover:border-purple-300 dark:hover:border-purple-700' : 'opacity-60'}`}
+                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between transition-all duration-300 active:scale-95 hover:shadow-xl ${activeFilter === 'furthest' ? 'bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/30 dark:to-slate-900 border-purple-500 ring-2 ring-purple-500/10' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-slate-100 dark:border-slate-800'} ${furthestExpiryInfo ? 'cursor-pointer hover:border-purple-300 dark:hover:border-purple-700' : 'opacity-60'}`}
               >
                 <div>
                   <div className="w-10 h-10 bg-purple-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-purple-500/20">
@@ -439,7 +444,7 @@ const App: React.FC = () => {
 
               <div 
                 onClick={() => totalLimit > 0 && setSortOrder('limit')}
-                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between transition-all active:scale-95 ${sortOrder === 'limit' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 ring-2 ring-emerald-500/10' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}
+                className={`p-6 rounded-[2.5rem] shadow-sm border flex flex-col justify-between transition-all duration-300 active:scale-95 hover:shadow-xl ${sortOrder === 'limit' ? 'bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-900/30 dark:to-slate-900 border-emerald-500 ring-2 ring-emerald-500/10' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-slate-100 dark:border-slate-800'}`}
               >
                 <div>
                   <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-emerald-500/20">
@@ -452,8 +457,8 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-               <div className="relative flex-grow max-w-xl">
-                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+               <div className="relative flex-grow max-w-xl group">
+                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
                  <input 
                   type="text" 
                   placeholder="Search cards, last 4 digits, or bank..." 
@@ -469,7 +474,7 @@ const App: React.FC = () => {
                       const nextSort = sortOrder === 'age' ? 'expiry' : sortOrder === 'expiry' ? 'limit' : 'age';
                       setSortOrder(nextSort);
                     }}
-                    className="flex items-center gap-2 px-6 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm transition-all active:scale-95"
+                    className="flex items-center gap-2 px-6 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm transition-all active:scale-95 hover:border-blue-200 dark:hover:border-blue-800"
                   >
                     <ArrowUpDown size={16} className="text-blue-500" />
                     <span>Sorted by: {sortOrder === 'age' ? 'Newest' : sortOrder === 'expiry' ? 'Expiry' : 'Limit'}</span>
@@ -496,7 +501,7 @@ const App: React.FC = () => {
                </div>
 
                {sortedActiveCards.length === 0 && activeFilter === 'none' && !searchTerm ? (
-                  <div className="py-16 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-inner">
+                  <div className="py-16 text-center flex flex-col items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 shadow-inner">
                       <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 text-slate-300 rounded-full flex items-center justify-center mb-4">
                         <CardIcon size={32} />
                       </div>
@@ -504,7 +509,7 @@ const App: React.FC = () => {
                       <p className="text-slate-500 dark:text-slate-400 mt-2 mb-6 font-medium max-w-xs mx-auto text-sm">
                         Add a new card to start building your vault.
                       </p>
-                      <button onClick={() => setIsFormOpen(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-500/30 active:scale-95 transition-all">
+                      <button onClick={() => setIsFormOpen(true)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-500/30 active:scale-95 transition-all hover:bg-blue-700">
                         Add First Card
                       </button>
                   </div>

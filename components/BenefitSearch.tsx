@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { CreditCard, BenefitCategory } from '../types';
 import { CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../constants';
@@ -160,14 +159,14 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
       {selectedCategory !== 'All' && (
         <div className="animate-in slide-in-from-top-4 duration-500">
            {bestCardForSelected ? (
-             <div className="p-8 rounded-[3rem] bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-700 text-white shadow-2xl shadow-blue-500/30 flex flex-col md:flex-row items-center gap-8 border border-white/10 relative overflow-hidden group">
+             <div className="p-8 rounded-[3rem] bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-700 text-white shadow-2xl shadow-blue-500/30 flex flex-col md:flex-row items-center gap-8 border border-white/10 relative overflow-hidden group hover:scale-[1.01] transition-transform duration-500">
                 <div className="absolute top-0 right-0 p-12 opacity-5 scale-[2.5] rotate-12 group-hover:scale-[3] transition-transform duration-700">
                    {CATEGORY_ICONS[selectedCategory as BenefitCategory]}
                 </div>
-                <div className="w-20 h-20 bg-white/20 rounded-[2rem] flex items-center justify-center backdrop-blur-xl shrink-0 border border-white/20 shadow-inner">
+                <div className="w-20 h-20 bg-white/20 rounded-[2rem] flex items-center justify-center backdrop-blur-xl shrink-0 border border-white/20 shadow-inner group-hover:scale-110 transition-transform duration-500">
                    <Trophy size={40} className="text-yellow-300 animate-bounce-slow" />
                 </div>
-                <div className="flex-grow text-center md:text-left space-y-2 min-w-0">
+                <div className="flex-grow text-center md:text-left space-y-2 min-w-0 relative z-10">
                    <div className="flex items-center justify-center md:justify-start gap-2">
                       <Sparkles size={14} className="text-yellow-300" />
                       <p className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-100">{UI_STRINGS.benefits_explorer.ai_recommendation}</p>
@@ -175,7 +174,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
                    <h3 className="text-3xl font-black tracking-tight truncate">{bestCardForSelected.card.name}</h3>
                    <p className="text-base font-bold text-blue-50 leading-relaxed max-w-xl line-clamp-2">{bestCardForSelected.benefit.detail}</p>
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0 relative z-10">
                    <div className="flex items-center gap-2 bg-black/30 px-6 py-3 rounded-2xl border border-white/10 backdrop-blur-md">
                       <Star size={16} className="text-yellow-400 fill-yellow-400" />
                       <span className="text-[10px] font-black uppercase tracking-widest">{UI_STRINGS.benefits_explorer.premium_pick}</span>
@@ -228,7 +227,7 @@ const BenefitSearch: React.FC<BenefitSearchProps> = ({ cards }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredBenefits.length > 0 ? (
           filteredBenefits.map((item, idx) => (
-            <div key={`${item.cardId}-${idx}`} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col hover:shadow-2xl hover:-translate-y-2 transition-all group text-left">
+            <div key={`${item.cardId}-${idx}`} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group text-left cursor-default">
               <div className="flex justify-between items-start mb-6">
                 <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-xl shadow-sm ${CATEGORY_COLORS[item.category]}`}>
                   {item.category}
