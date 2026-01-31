@@ -2,6 +2,7 @@
 
 export type BenefitCategory = 'Shopping' | 'Food' | 'Entertainment' | 'Fuel' | 'Forex' | 'Travel' | 'Other';
 export type CardCategory = 'Credit' | 'Debit';
+export type AppTheme = 'Blue' | 'Purple' | 'Emerald' | 'Rose' | 'Amber' | 'Cyan';
 
 export interface Benefit {
   id: string;
@@ -57,6 +58,7 @@ export interface BackupPayload {
     notificationPeriod?: number;
     proStatus?: boolean;
     advisorUsage?: { month: string; count: number };
+    theme?: AppTheme;
   };
 }
 

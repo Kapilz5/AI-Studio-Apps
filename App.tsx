@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, LayoutGrid, ArrowUpDown, Wallet, Moon, Sun, UserCircle, Sparkles, CalendarDays, History, Layers, AlertTriangle, Search, X, ChevronRight, BarChart3, Info, TrendingUp, CreditCard as CardIcon, Filter, CheckCircle2, Lightbulb, ChevronDown } from 'lucide-react';
-import { CreditCard, CardFormData, Benefit } from './types';
-import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod, removeNotifiedFlag, getLastSeenVersion, setLastSeenVersion, APP_VERSION } from './utils/storage';
+import { CreditCard, CardFormData, Benefit, AppTheme } from './types';
+import { hasStoredData, getMPINHash, saveCards, decryptLocalCards, getNotificationPeriod, removeNotifiedFlag, getLastSeenVersion, setLastSeenVersion, APP_VERSION, getThemeColor } from './utils/storage';
+import { THEME_PALETTES } from './constants';
 import CardItem from './components/CardItem';
 import CardForm from './components/CardForm';
 import BenefitSearch from './components/BenefitSearch';
@@ -46,6 +47,30 @@ const App: React.FC = () => {
     }
     return false;
   });
+
+  const applyTheme = (themeName: AppTheme) => {
+    const palette = THEME_PALETTES[themeName];
+    if (!palette) return;
+
+    const root = document.documentElement;
+    // Apply Primary Colors
+    Object.entries(palette.primary).forEach(([shade, value]) => {
+      root.style.setProperty(`--color-primary-${shade}`, value);
+    });
+    // Apply Secondary Colors
+    Object.entries(palette.secondary).forEach(([shade, value]) => {
+      root.style.setProperty(`--color-secondary-${shade}`, value);
+    });
+  };
+
+  // Load Theme on Init
+  useEffect(() => {
+    const initTheme = async () => {
+      const storedTheme = await getThemeColor();
+      applyTheme(storedTheme);
+    };
+    initTheme();
+  }, []);
 
   useEffect(() => {
     if (isDark) {
@@ -223,6 +248,10 @@ const App: React.FC = () => {
 
   const handleEditCard = (card: CreditCard) => { setEditingCard(card); setIsFormOpen(true); };
 
+  const handleThemeChange = (newTheme: AppTheme) => {
+    applyTheme(newTheme);
+  };
+
   // Computed lists
   const activeCards = useMemo(() => cards.filter(c => c.status !== 'expired'), [cards]);
   const expiredCards = useMemo(() => cards.filter(c => c.status === 'expired'), [cards]);
@@ -319,8 +348,8 @@ const App: React.FC = () => {
       {/* Dynamic Background Aura */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-blue-400/20 dark:bg-blue-600/10 blur-[120px] animate-pulse-slow mix-blend-multiply dark:mix-blend-screen" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-purple-400/20 dark:bg-purple-600/10 blur-[120px] animate-pulse-slow delay-1000 mix-blend-multiply dark:mix-blend-screen" />
-        <div className="absolute top-[30%] left-[30%] w-[40vw] h-[40vw] rounded-full bg-indigo-300/10 dark:bg-indigo-500/5 blur-[100px] animate-pulse-slow delay-500" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-indigo-400/20 dark:bg-indigo-600/10 blur-[120px] animate-pulse-slow delay-1000 mix-blend-multiply dark:mix-blend-screen" />
+        <div className="absolute top-[30%] left-[30%] w-[40vw] h-[40vw] rounded-full bg-blue-300/10 dark:bg-blue-500/5 blur-[100px] animate-pulse-slow delay-500" />
       </div>
 
       <header className="sticky top-0 z-40 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 pt-[env(safe-area-inset-top)] transition-all duration-300">
@@ -608,7 +637,7 @@ const App: React.FC = () => {
       )}
 
       {isFormOpen && masterKey && <CardForm onSave={handleSaveCard} onCancel={closeForm} initialData={editingCard} cards={cards} masterKey={masterKey} onOpenSettings={() => setIsSettingsOpen(true)} />}
-      {isSettingsOpen && masterKey && <SettingsModal cards={cards} onCardsSynced={(c) => setCards(c)} onClose={() => setIsSettingsOpen(false)} masterKey={masterKey} onNotifPeriodChange={setNotificationPeriodState} />}
+      {isSettingsOpen && masterKey && <SettingsModal cards={cards} onCardsSynced={(c) => setCards(c)} onClose={() => setIsSettingsOpen(false)} masterKey={masterKey} onNotifPeriodChange={setNotificationPeriodState} onThemeChange={handleThemeChange} />}
     </div>
   );
 };

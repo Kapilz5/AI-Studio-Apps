@@ -1,6 +1,7 @@
 
 
-import { CreditCard, BackupPayload } from '../types';
+
+import { CreditCard, BackupPayload, AppTheme } from '../types';
 
 // App Version Definition
 export const APP_VERSION = '1.1.0';
@@ -24,6 +25,7 @@ const KEY_LAST_SEEN_VERSION = 'last_seen_version';
 const KEY_USER_API_KEY_ENC = 'user_api_key_enc';
 const KEY_PRO_STATUS = 'pro_status_v1';
 const KEY_ADVISOR_USAGE = 'advisor_usage_v1';
+const KEY_THEME = 'app_theme';
 
 // Crypto Constants
 const PBKDF2_ITERATIONS = 600000; // High iteration count for PWA fallback
@@ -521,6 +523,7 @@ export const wipeEverything = async () => {
     await idb.put(KEY_USER_API_KEY_ENC, noise);
     await idb.put(KEY_PRO_STATUS, noise);
     await idb.put(KEY_ADVISOR_USAGE, noise);
+    await idb.put(KEY_THEME, noise);
   } catch (e) {
     console.warn("Secure overwrite interrupted, proceeding to clear.", e);
   }
@@ -562,6 +565,16 @@ export const removeNotifiedFlag = async (cardId: string) => {
         delete notified[cardId];
         await saveNotifiedCards(notified);
     }
+};
+
+// Theme Settings
+export const getThemeColor = async (): Promise<AppTheme> => {
+  const val = await idb.get<AppTheme>(KEY_THEME);
+  return val || 'Blue';
+};
+
+export const setThemeColor = async (theme: AppTheme) => {
+  await idb.put(KEY_THEME, theme);
 };
 
 // Version Tracking
@@ -616,6 +629,7 @@ export const restoreSettings = async (settings: BackupPayload['settings']) => {
   if (settings.notificationPeriod) await setNotificationPeriod(settings.notificationPeriod);
   if (settings.proStatus !== undefined) await setProStatus(settings.proStatus);
   if (settings.advisorUsage) await idb.put(KEY_ADVISOR_USAGE, settings.advisorUsage);
+  if (settings.theme) await setThemeColor(settings.theme);
 };
 
 // --- EXPORT / IMPORT (Manual Encrypted Backups) ---
@@ -625,7 +639,8 @@ export const exportEncryptedBackup = async (cards: CreditCard[], passphrase: str
   const settings = {
     notificationPeriod: await getNotificationPeriod(),
     proStatus: await getProStatus(),
-    advisorUsage: (await idb.get<{ month: string; count: number }>(KEY_ADVISOR_USAGE)) || { month: '', count: 0 }
+    advisorUsage: (await idb.get<{ month: string; count: number }>(KEY_ADVISOR_USAGE)) || { month: '', count: 0 },
+    theme: await getThemeColor(),
   };
 
   // 2. Prepare Payload
