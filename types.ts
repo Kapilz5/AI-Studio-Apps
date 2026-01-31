@@ -2,7 +2,26 @@
 
 export type BenefitCategory = 'Shopping' | 'Food' | 'Entertainment' | 'Fuel' | 'Forex' | 'Travel' | 'Other';
 export type CardCategory = 'Credit' | 'Debit';
-export type AppTheme = 'Blue' | 'Purple' | 'Emerald' | 'Rose' | 'Amber' | 'Cyan';
+export type AppTheme = 
+  | 'Slate' 
+  | 'Gray' 
+  | 'Red' 
+  | 'Orange' 
+  | 'Amber' 
+  | 'Yellow' 
+  | 'Lime' 
+  | 'Green' 
+  | 'Emerald' 
+  | 'Teal' 
+  | 'Cyan' 
+  | 'Sky' 
+  | 'Blue' 
+  | 'Indigo' 
+  | 'Violet' 
+  | 'Purple' 
+  | 'Fuchsia' 
+  | 'Pink' 
+  | 'Rose';
 
 export interface Benefit {
   id: string;

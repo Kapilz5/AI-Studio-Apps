@@ -445,21 +445,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">App Theme</h3>
                 </div>
                 <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700">
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
                          {(Object.keys(THEME_PALETTES) as AppTheme[]).map(theme => {
                              // Defensive check to prevent crash if palette is missing
                              const palette = THEME_PALETTES[theme];
-                             const primaryColor = palette?.primary?.[500] || '255 255 255';
+                             const primaryColor = palette?.primary?.[500] || '128 128 128';
                              const colorStyle = `rgb(${primaryColor.split(' ').join(',')})`;
                              
                              return (
                                  <button
                                     key={theme}
                                     onClick={() => handleSetTheme(theme)}
-                                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-2 border-2 transition-all ${currentTheme === theme ? 'border-slate-900 dark:border-white bg-white dark:bg-slate-800 shadow-lg scale-105' : 'border-transparent hover:bg-white dark:hover:bg-slate-800'}`}
+                                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 border-2 transition-all ${currentTheme === theme ? 'border-slate-900 dark:border-white bg-white dark:bg-slate-800 shadow-lg scale-105' : 'border-transparent hover:bg-white dark:hover:bg-slate-800'}`}
                                  >
-                                     <div className={`w-6 h-6 rounded-full bg-${theme.toLowerCase()}-500 shadow-sm`} style={{ backgroundColor: colorStyle }} />
-                                     <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{theme}</span>
+                                     <div className={`w-5 h-5 rounded-full shadow-sm border border-black/5`} style={{ backgroundColor: colorStyle }} />
+                                     <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 truncate w-full px-1 text-center">{theme}</span>
                                  </button>
                              );
                          })}
