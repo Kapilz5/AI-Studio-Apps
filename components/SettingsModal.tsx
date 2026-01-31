@@ -1,4 +1,5 @@
-import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, BellRing, BellPlus, BellOff, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink, Zap, Crown, FileText, Loader2, Palette, AlertTriangle } from 'lucide-react';
+
+import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink, Zap, Crown, FileText, Loader2, Palette, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { CreditCard, AppTheme } from '../types';
 import { 
@@ -84,6 +85,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
   // Load async settings on mount
   useEffect(() => {
     const loadSettings = async () => {
+      try {
         const bio = await getBiometricEnrolled();
         setIsBiometricEnrolled(!!bio);
         
@@ -117,6 +119,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
             leaks: storageCheck.leaks,
             loading: false
         });
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+        setHealth(prev => ({ ...prev, loading: false }));
+      }
     };
     loadSettings();
     
@@ -440,16 +446,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                 </div>
                 <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700">
                     <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                         {(Object.keys(THEME_PALETTES) as AppTheme[]).map(theme => (
-                             <button
-                                key={theme}
-                                onClick={() => handleSetTheme(theme)}
-                                className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-2 border-2 transition-all ${currentTheme === theme ? 'border-slate-900 dark:border-white bg-white dark:bg-slate-800 shadow-lg scale-105' : 'border-transparent hover:bg-white dark:hover:bg-slate-800'}`}
-                             >
-                                 <div className={`w-6 h-6 rounded-full bg-${theme.toLowerCase()}-500 shadow-sm`} style={{ backgroundColor: `rgb(${THEME_PALETTES[theme].primary[500].split(' ').join(',')})` }} />
-                                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{theme}</span>
-                             </button>
-                         ))}
+                         {(Object.keys(THEME_PALETTES) as AppTheme[]).map(theme => {
+                             // Defensive check to prevent crash if palette is missing
+                             const palette = THEME_PALETTES[theme];
+                             const primaryColor = palette?.primary?.[500] || '255 255 255';
+                             const colorStyle = `rgb(${primaryColor.split(' ').join(',')})`;
+                             
+                             return (
+                                 <button
+                                    key={theme}
+                                    onClick={() => handleSetTheme(theme)}
+                                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-2 border-2 transition-all ${currentTheme === theme ? 'border-slate-900 dark:border-white bg-white dark:bg-slate-800 shadow-lg scale-105' : 'border-transparent hover:bg-white dark:hover:bg-slate-800'}`}
+                                 >
+                                     <div className={`w-6 h-6 rounded-full bg-${theme.toLowerCase()}-500 shadow-sm`} style={{ backgroundColor: colorStyle }} />
+                                     <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{theme}</span>
+                                 </button>
+                             );
+                         })}
                     </div>
                 </div>
             </section>
