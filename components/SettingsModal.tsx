@@ -1,6 +1,6 @@
 
 import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink, Zap, Crown, FileText, Loader2, Palette, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { CreditCard, AppTheme } from '../types';
 import { 
   getBiometricEnrolled, 
@@ -265,6 +265,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
     }
   };
 
+  // --- Theme Spectrum Logic ---
+  const themes = useMemo(() => Object.keys(THEME_PALETTES) as AppTheme[], []);
+  
+  // Calculate slider background gradient
+  const spectrumGradient = useMemo(() => {
+    const stops = themes.map(t => {
+      const rgb = THEME_PALETTES[t].primary[500].split(' ').join(',');
+      return `rgb(${rgb})`;
+    }).join(', ');
+    return `linear-gradient(to right, ${stops})`;
+  }, [themes]);
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const index = parseInt(e.target.value, 10);
+    const selectedTheme = themes[index];
+    if (selectedTheme) {
+      handleSetTheme(selectedTheme);
+    }
+  };
+
   if (showMpinReset) {
     return (
       <SecurityAuth 
@@ -438,31 +458,69 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                 </div>
             </section>
 
-            {/* Theme */}
+            {/* Theme Spectrum Slider */}
             <section className="space-y-4">
                  <div className="flex items-center gap-2 px-2">
                     <Palette size={16} className="text-purple-500" />
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">App Theme</h3>
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">App Theme Spectrum</h3>
                 </div>
-                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700">
-                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
-                         {(Object.keys(THEME_PALETTES) as AppTheme[]).map(theme => {
-                             // Defensive check to prevent crash if palette is missing
-                             const palette = THEME_PALETTES[theme];
-                             const primaryColor = palette?.primary?.[500] || '128 128 128';
-                             const colorStyle = `rgb(${primaryColor.split(' ').join(',')})`;
-                             
-                             return (
-                                 <button
-                                    key={theme}
-                                    onClick={() => handleSetTheme(theme)}
-                                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 border-2 transition-all ${currentTheme === theme ? 'border-slate-900 dark:border-white bg-white dark:bg-slate-800 shadow-lg scale-105' : 'border-transparent hover:bg-white dark:hover:bg-slate-800'}`}
-                                 >
-                                     <div className={`w-5 h-5 rounded-full shadow-sm border border-black/5`} style={{ backgroundColor: colorStyle }} />
-                                     <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 truncate w-full px-1 text-center">{theme}</span>
-                                 </button>
-                             );
-                         })}
+                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700 space-y-4">
+                    <div className="flex justify-between items-end px-1">
+                        <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Style</span>
+                            <h4 className="text-xl font-black text-slate-900 dark:text-white mt-1">{currentTheme}</h4>
+                        </div>
+                        <div 
+                            className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-700 shadow-lg" 
+                            style={{ 
+                                backgroundColor: `rgb(${THEME_PALETTES[currentTheme]?.primary?.[500]?.split(' ').join(',') || '0,0,0'})` 
+                            }} 
+                        />
+                    </div>
+                    
+                    <div className="relative pt-2 pb-1">
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max={themes.length - 1} 
+                            step="1"
+                            value={themes.indexOf(currentTheme) !== -1 ? themes.indexOf(currentTheme) : 0}
+                            onChange={handleSliderChange}
+                            className="w-full h-6 rounded-full appearance-none cursor-pointer outline-none relative z-10 slider-thumb-white shadow-inner border border-slate-200 dark:border-slate-700"
+                            style={{ 
+                                background: spectrumGradient 
+                            }}
+                        />
+                        <style>{`
+                            .slider-thumb-white::-webkit-slider-thumb {
+                                -webkit-appearance: none;
+                                appearance: none;
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 50%;
+                                background: #ffffff;
+                                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 0 0 4px rgba(255, 255, 255, 0.3);
+                                cursor: pointer;
+                                transition: transform 0.1s ease;
+                            }
+                            .slider-thumb-white::-webkit-slider-thumb:hover {
+                                transform: scale(1.1);
+                            }
+                            .slider-thumb-white::-moz-range-thumb {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 50%;
+                                background: #ffffff;
+                                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 0 0 4px rgba(255, 255, 255, 0.3);
+                                cursor: pointer;
+                                border: none;
+                            }
+                        `}</style>
+                    </div>
+                    <div className="flex justify-between px-1">
+                        <span className="text-[9px] font-black text-slate-400 uppercase">Slate</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase">Rainbow</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase">Rose</span>
                     </div>
                 </div>
             </section>
