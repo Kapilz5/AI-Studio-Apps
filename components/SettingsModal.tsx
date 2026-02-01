@@ -1,4 +1,3 @@
-
 import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink, Zap, Crown, FileText, Loader2, Palette, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { CreditCard, AppTheme } from '../types';
