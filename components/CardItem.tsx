@@ -1,5 +1,4 @@
 
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CreditCard as CardType } from '../types';
@@ -197,12 +196,12 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
 
   const renderNetworkLogo = (type?: string) => {
     const t = (type || '').toLowerCase();
-    const containerClass = "flex items-center justify-center h-8 px-3 bg-white/90 backdrop-blur-md rounded-lg shadow-sm border border-white/40 shrink-0";
-    if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-sm tracking-tighter leading-none">VISA</span></div>;
-    if (t.includes('mastercard')) return <div className="flex items-center -space-x-2 h-8 shrink-0"><div className="w-6 h-6 rounded-full bg-[#eb001b] shadow-sm" /><div className="w-6 h-6 rounded-full bg-[#f79e1b] opacity-90 shadow-sm" /></div>;
-    if (t.includes('amex') || t.includes('american')) return <div className="h-8 w-10 bg-[#016fd0] rounded-lg flex items-center justify-center border border-white/20 shadow-sm overflow-hidden shrink-0"><span className="text-[10px] font-black text-white italic tracking-tighter">AMEX</span></div>;
-    if (t.includes('rupay')) return <div className={containerClass}><div className="text-xs font-black italic tracking-tighter leading-none"><span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span></div></div>;
-    return <LucideCreditCard size={28} className="text-white/60 drop-shadow-md shrink-0" />;
+    const containerClass = "flex items-center justify-center h-6 md:h-8 px-2 md:px-3 bg-white/90 backdrop-blur-md rounded-lg shadow-sm border border-white/40 shrink-0";
+    if (t.includes('visa')) return <div className={containerClass}><span className="text-[#1a1f71] font-black italic text-xs md:text-sm tracking-tighter leading-none">VISA</span></div>;
+    if (t.includes('mastercard')) return <div className="flex items-center -space-x-2 h-6 md:h-8 shrink-0"><div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#eb001b] shadow-sm" /><div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#f79e1b] opacity-90 shadow-sm" /></div>;
+    if (t.includes('amex') || t.includes('american')) return <div className="h-6 w-8 md:h-8 md:w-10 bg-[#016fd0] rounded-lg flex items-center justify-center border border-white/20 shadow-sm overflow-hidden shrink-0"><span className="text-[8px] md:text-[10px] font-black text-white italic tracking-tighter">AMEX</span></div>;
+    if (t.includes('rupay')) return <div className={containerClass}><div className="text-[10px] md:text-xs font-black italic tracking-tighter leading-none"><span className="text-[#f37021]">Ru</span><span className="text-[#253b80]">Pay</span></div></div>;
+    return <LucideCreditCard size={24} className="text-white/60 drop-shadow-md shrink-0 md:w-7 md:h-7" />;
   };
 
   // Background Style Logic
@@ -261,7 +260,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
         <div className="relative transition-all duration-500 flex flex-col perspective-1000">
           <div 
             ref={cardRef}
-            className={`relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${!card.customSkin && !isExpired ? 'card-gradient' : ''} ${expiring ? 'ring-4 ring-rose-400/50 shadow-rose-500/30 scale-[1.02]' : ''}`}
+            className={`relative p-6 md:p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${!card.customSkin && !isExpired ? 'card-gradient' : ''} ${expiring ? 'ring-4 ring-rose-400/50 shadow-rose-500/30 scale-[1.02]' : ''}`}
             style={{
                 ...getBackgroundStyle(),
                 transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg)`,
@@ -302,86 +301,86 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
             )}
 
             {!isExpired && expiring && (
-              <div className="absolute top-4 left-4 bg-rose-500 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest z-20 flex items-center gap-1.5 shadow-lg animate-pulse" style={{ transform: 'translateZ(20px)' }}>
+              <div className="absolute top-4 left-4 bg-rose-500 text-white px-2 py-1 md:px-3 md:py-1.5 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest z-20 flex items-center gap-1.5 shadow-lg animate-pulse" style={{ transform: 'translateZ(20px)' }}>
                 <AlertCircle size={10} />
                 <span>Expiring Soon</span>
               </div>
             )}
 
             <div className="flex justify-between items-start z-10" style={{ transform: 'translateZ(20px)' }}>
-              <div className={`w-14 h-10 rounded-xl shadow-inner opacity-90 backdrop-blur-sm border border-white/20 ${isExpired ? 'bg-slate-700' : 'bg-gradient-to-br from-yellow-200 to-yellow-500'}`} />
-              <div className="flex flex-col items-end gap-3">
-                <span className="text-[10px] font-black bg-black/20 px-3 py-1.5 rounded-xl uppercase tracking-widest backdrop-blur-md border border-white/10 shadow-sm">{card.cardCategory || 'CARD'}</span>
+              <div className={`w-12 h-8 md:w-14 md:h-10 rounded-lg md:rounded-xl shadow-inner opacity-90 backdrop-blur-sm border border-white/20 ${isExpired ? 'bg-slate-700' : 'bg-gradient-to-br from-yellow-200 to-yellow-500'}`} />
+              <div className="flex flex-col items-end gap-2 md:gap-3">
+                <span className="text-[8px] md:text-[10px] font-black bg-black/20 px-2 py-1 md:px-3 md:py-1.5 rounded-lg md:rounded-xl uppercase tracking-widest backdrop-blur-md border border-white/10 shadow-sm">{card.cardCategory || 'CARD'}</span>
                 <button 
                     onClick={(e) => { e.stopPropagation(); handleToggleSensitive(); }} 
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all border backdrop-blur-md ${isSensitiveVisible ? 'bg-white text-slate-900 border-white shadow-lg' : 'bg-black/20 hover:bg-black/30 text-white border-white/20'}`}
+                    className={`flex items-center gap-1.5 md:gap-2 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg md:rounded-xl transition-all border backdrop-blur-md ${isSensitiveVisible ? 'bg-white text-slate-900 border-white shadow-lg' : 'bg-black/20 hover:bg-black/30 text-white border-white/20'}`}
                 >
-                  {isSensitiveVisible ? <EyeOff size={16} /> : <Eye size={16} />}
-                  <span className="text-[10px] font-black uppercase tracking-widest">{isSensitiveVisible ? 'Hide' : 'View'}</span>
+                  {isSensitiveVisible ? <EyeOff size={14} className="md:w-4 md:h-4" /> : <Eye size={14} className="md:w-4 md:h-4" />}
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">{isSensitiveVisible ? 'Hide' : 'View'}</span>
                 </button>
               </div>
             </div>
             
             <div className={`z-10 min-w-0 transition-all duration-500 ${isLockedExpired ? 'blur-[4px] opacity-50' : ''}`} style={{ transform: 'translateZ(30px)' }}>
-              <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-3 md:gap-4 mb-3 md:mb-4">
                 {renderNetworkLogo(card.cardType)}
-                <h3 className="text-2xl font-black truncate tracking-tight min-w-0 select-none drop-shadow-md" title={card.name}>{card.name}</h3>
+                <h3 className="text-xl md:text-2xl font-black truncate tracking-tight min-w-0 select-none drop-shadow-md" title={card.name}>{card.name}</h3>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 md:gap-4">
                   {/* Prevent selection of card number to avoid clipboard leaks, force use of button */}
-                  <div className="text-white/90 font-mono text-xl tracking-[0.2em] select-none pointer-events-none drop-shadow-sm font-bold">
+                  <div className="text-white/90 font-mono text-lg md:text-xl tracking-[0.15em] md:tracking-[0.2em] select-none pointer-events-none drop-shadow-sm font-bold">
                     {formatFullNumber(card.fullNumber)}
                   </div>
                   <button 
                       onClick={handleSecureCopy}
-                      className="p-2 bg-black/20 hover:bg-black/30 rounded-lg transition-colors text-white backdrop-blur-sm border border-white/10"
+                      className="p-1.5 md:p-2 bg-black/20 hover:bg-black/30 rounded-lg transition-colors text-white backdrop-blur-sm border border-white/10"
                       title="Secure Copy (Requires Auth)"
                   >
-                      {copyStatus === 'copied' ? <ClipboardCheck size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                      {copyStatus === 'copied' ? <ClipboardCheck size={14} className="text-emerald-400 md:w-4 md:h-4" /> : <Copy size={14} className="md:w-4 md:h-4" />}
                   </button>
               </div>
             </div>
 
-            <div className={`flex justify-between items-end z-10 border-t border-white/10 pt-4 transition-all duration-500 ${isLockedExpired ? 'blur-[4px] opacity-50' : ''}`} style={{ transform: 'translateZ(20px)' }}>
-              <div className="flex gap-8 text-left">
+            <div className={`flex justify-between items-end z-10 border-t border-white/10 pt-3 md:pt-4 transition-all duration-500 ${isLockedExpired ? 'blur-[4px] opacity-50' : ''}`} style={{ transform: 'translateZ(20px)' }}>
+              <div className="flex gap-4 md:gap-8 text-left">
                 <div>
-                  <p className="text-[9px] uppercase font-black text-white/50 tracking-widest mb-1">Expires</p>
-                  <span className={`font-mono text-lg font-bold select-none drop-shadow-sm ${expiring ? 'text-rose-200 underline decoration-2 underline-offset-4' : ''}`}>{String(card.expiryMonth).padStart(2, '0')}/{String(card.expiryYear).slice(-2)}</span>
+                  <p className="text-[8px] md:text-[9px] uppercase font-black text-white/50 tracking-widest mb-0.5 md:mb-1">Expires</p>
+                  <span className={`font-mono text-sm md:text-lg font-bold select-none drop-shadow-sm ${expiring ? 'text-rose-200 underline decoration-2 underline-offset-4' : ''}`}>{String(card.expiryMonth).padStart(2, '0')}/{String(card.expiryYear).slice(-2)}</span>
                 </div>
                 <div>
-                  <p className="text-[9px] uppercase font-black text-white/50 tracking-widest mb-1">CVV</p>
-                  <span className="font-mono text-lg font-bold tracking-widest select-none drop-shadow-sm">{isSensitiveVisible ? card.cvv : '•••'}</span>
+                  <p className="text-[8px] md:text-[9px] uppercase font-black text-white/50 tracking-widest mb-0.5 md:mb-1">CVV</p>
+                  <span className="font-mono text-sm md:text-lg font-bold tracking-widest select-none drop-shadow-sm">{isSensitiveVisible ? card.cvv : '•••'}</span>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[9px] uppercase font-black text-white/50 tracking-widest mb-1">Fee</p>
-                <p className="font-bold text-xl select-none drop-shadow-sm">{formatCurrency(card.annualFee)}</p>
+                <p className="text-[8px] md:text-[9px] uppercase font-black text-white/50 tracking-widest mb-0.5 md:mb-1">Fee</p>
+                <p className="font-bold text-lg md:text-xl select-none drop-shadow-sm">{formatCurrency(card.annualFee)}</p>
               </div>
             </div>
           </div>
           {card.bestOffer && !isExpired && (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/40 dark:to-orange-900/40 mx-8 -mt-5 pt-6 pb-3 px-4 rounded-b-[1.5rem] border-x border-b border-amber-100 dark:border-amber-900/50 shadow-sm z-0 flex items-center gap-3 transition-transform duration-300 hover:translate-y-1 backdrop-blur-sm">
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/40 dark:to-orange-900/40 mx-4 md:mx-8 -mt-5 pt-6 pb-3 px-4 rounded-b-[1.5rem] border-x border-b border-amber-100 dark:border-amber-900/50 shadow-sm z-0 flex items-center gap-3 transition-transform duration-300 hover:translate-y-1 backdrop-blur-sm">
               <Tag size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-              <p className="text-[10px] font-black text-amber-900 dark:text-amber-100 leading-tight line-clamp-1 tracking-wide">{card.bestOffer}</p>
+              <p className="text-[9px] md:text-[10px] font-black text-amber-900 dark:text-amber-100 leading-tight line-clamp-1 tracking-wide">{card.bestOffer}</p>
             </div>
           )}
           {card.waiverTarget > 0 && !isExpired && (
-            <div className={`mx-6 mt-3 p-6 rounded-[2rem] shadow-lg border z-0 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${isWaived ? 'bg-emerald-50/80 dark:bg-emerald-950/50 border-emerald-100 dark:border-emerald-900/30' : 'bg-white/60 dark:bg-slate-900/60 border-slate-100 dark:border-slate-800'} backdrop-blur-md`}>
+            <div className={`mx-4 md:mx-6 mt-3 p-4 md:p-6 rounded-[2rem] shadow-lg border z-0 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${isWaived ? 'bg-emerald-50/80 dark:bg-emerald-950/50 border-emerald-100 dark:border-emerald-900/30' : 'bg-white/60 dark:bg-slate-900/60 border-slate-100 dark:border-slate-800'} backdrop-blur-md`}>
               <div className="flex justify-between items-center mb-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{isWaived ? 'Fee Waived!' : 'Waiver Target'}</span>
-                <span className={`text-[10px] font-black px-3 py-1 rounded-full ${isWaived ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-300' : 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300'}`}>{Math.round(waiverProgress)}%</span>
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">{isWaived ? 'Fee Waived!' : 'Waiver Target'}</span>
+                <span className={`text-[9px] md:text-[10px] font-black px-2 py-0.5 md:px-3 md:py-1 rounded-full ${isWaived ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-300' : 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300'}`}>{Math.round(waiverProgress)}%</span>
               </div>
               <div className="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-4 p-0.5">
                 <div className={`h-full rounded-full transition-all duration-1000 ${isWaived ? 'bg-emerald-500' : 'bg-blue-600'}`} style={{ width: `${waiverProgress}%` }} />
               </div>
               <div className="flex justify-between items-center">
-                <p className="text-sm font-black dark:text-white">{formatCurrency(card.currentSpend)} / {formatCurrency(card.waiverTarget)}</p>
-                <button onClick={() => { const val = prompt("Enter spend amount to add:"); if (val && !isNaN(Number(val))) onUpdateSpend?.(card.id, Number(val)); }} className="text-[10px] font-black text-white bg-slate-900 dark:bg-slate-700 px-4 py-2 rounded-xl active:scale-95 transition-all uppercase tracking-widest">Add Spend</button>
+                <p className="text-xs md:text-sm font-black dark:text-white">{formatCurrency(card.currentSpend)} / {formatCurrency(card.waiverTarget)}</p>
+                <button onClick={() => { const val = prompt("Enter spend amount to add:"); if (val && !isNaN(Number(val))) onUpdateSpend?.(card.id, Number(val)); }} className="text-[9px] md:text-[10px] font-black text-white bg-slate-900 dark:bg-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-xl active:scale-95 transition-all uppercase tracking-widest">Add Spend</button>
               </div>
             </div>
           )}
-          <div className="absolute -top-3 -right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-20">
-            <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl shadow-xl hover:bg-blue-600 hover:text-white transition-all transform hover:scale-110 border border-slate-100 dark:border-slate-700"><Edit3 size={18} /></button>
+          <div className="absolute -top-3 -right-3 flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all z-20">
+            <button onClick={(e) => { e.stopPropagation(); onEdit(card); }} className="p-2 md:p-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl shadow-xl hover:bg-blue-600 hover:text-white transition-all transform hover:scale-110 border border-slate-100 dark:border-slate-700"><Edit3 size={16} className="md:w-[18px] md:h-[18px]" /></button>
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+
 import { Fingerprint, RefreshCcw, ShieldAlert, Trash2, X, Shield, Smartphone, Bell, ShieldCheck, Download, Upload, FileLock, Check, Activity, Lock, Key, Eye, EyeOff, ExternalLink, Zap, Crown, FileText, Loader2, Palette, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { CreditCard, AppTheme } from '../types';
@@ -7,7 +8,6 @@ import {
   wipeEverything, 
   getNotificationPeriod,
   setNotificationPeriod,
-  enrollBiometrics,
   enrollBiometricsWithKey,
   exportEncryptedBackup,
   importEncryptedBackup,
@@ -319,385 +319,398 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ cards, onClose, masterKey
                 <Crown size={32} />
             </div>
             <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{UI_STRINGS.monetization.upgrade_title}</h3>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-6">{UI_STRINGS.monetization.upgrade_subtitle}</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium mb-8 text-sm">{UI_STRINGS.monetization.upgrade_subtitle}</p>
             
-            <div className="space-y-3 mb-8 text-left">
+            <div className="space-y-4 mb-8 text-left bg-slate-50 dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700">
                 <div className="flex items-center gap-3">
-                    <div className="p-1 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-600"><Check size={12} /></div>
+                    <CheckCircle2 size={16} className="text-emerald-500" />
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{UI_STRINGS.monetization.feat_advisor}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="p-1 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-600"><Check size={12} /></div>
+                    <CheckCircle2 size={16} className="text-emerald-500" />
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{UI_STRINGS.monetization.feat_export}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="p-1 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-600"><Check size={12} /></div>
+                    <CheckCircle2 size={16} className="text-emerald-500" />
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{UI_STRINGS.monetization.feat_alerts}</span>
                 </div>
             </div>
 
             <div className="flex gap-3">
-                <button onClick={() => setShowUpgradeConfirm(false)} className="flex-1 py-4 text-slate-500 font-black text-xs uppercase tracking-widest hover:text-slate-700 dark:hover:text-slate-300">{UI_STRINGS.common.cancel}</button>
-                <button onClick={handleUpgradeToPro} className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/30 active:scale-95 transition-all">{UI_STRINGS.monetization.upgrade_btn}</button>
+                <button onClick={() => setShowUpgradeConfirm(false)} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-500 font-black text-[10px] uppercase tracking-widest">{UI_STRINGS.common.cancel}</button>
+                <button onClick={handleUpgradeToPro} className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/30">{UI_STRINGS.monetization.upgrade_btn}</button>
             </div>
         </div>
       </div>
     );
   }
 
-  // Main Render
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl h-[85vh] rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in duration-300">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 dark:border-slate-800 animate-in slide-in-from-bottom-8 duration-300">
         
         {/* Header */}
-        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
-            <div>
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{UI_STRINGS.settings.title}</h2>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{UI_STRINGS.settings.subtitle}</p>
-            </div>
-            <button onClick={onClose} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                <X size={20} className="text-slate-500" />
-            </button>
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{UI_STRINGS.settings.title}</h2>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{UI_STRINGS.settings.subtitle}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+            <X size={24} className="text-slate-500" />
+          </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-10">
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+
+          {/* Pro Status */}
+          <div className="p-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-[2rem] shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                <Crown size={120} />
+            </div>
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-xl ${isPro ? 'bg-yellow-400 text-yellow-900' : 'bg-white/10 text-slate-300'}`}>
+                            {isPro ? <Crown size={20} /> : <Zap size={20} />}
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black tracking-tight">{UI_STRINGS.monetization.plan_title}</h3>
+                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">
+                                {isPro ? "Unlimited Lifetime Access" : "Standard Local Tier"}
+                            </p>
+                        </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isPro ? 'bg-yellow-400 text-yellow-900' : 'bg-slate-700 text-slate-300'}`}>
+                        {isPro ? UI_STRINGS.monetization.pro_badge : UI_STRINGS.monetization.free_badge}
+                    </span>
+                </div>
+
+                {!isPro && (
+                    <div className="mb-6">
+                         <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest mb-2 opacity-80">
+                            <span>{UI_STRINGS.monetization.credits_used}</span>
+                            <span>{advisorUsage.count} {UI_STRINGS.monetization.credits_limit}</span>
+                         </div>
+                         <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                            <div 
+                                className={`h-full transition-all duration-500 ${advisorUsage.count >= advisorUsage.limit ? 'bg-rose-500' : 'bg-blue-500'}`} 
+                                style={{ width: `${Math.min(100, (advisorUsage.count / advisorUsage.limit) * 100)}%` }} 
+                            />
+                         </div>
+                    </div>
+                )}
+
+                <div className="flex gap-3">
+                    {!isPro ? (
+                         <button 
+                            onClick={() => setShowUpgradeConfirm(true)}
+                            className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/30 transition-all active:scale-95"
+                         >
+                            {UI_STRINGS.monetization.upgrade_btn}
+                         </button>
+                    ) : (
+                        <div className="flex-1 py-3 bg-white/10 rounded-xl text-center text-xs font-bold text-white/50 border border-white/5 select-none cursor-default">
+                             {UI_STRINGS.monetization.pro_badge} Active
+                        </div>
+                    )}
+                </div>
+            </div>
+          </div>
+
+          {/* AI Configuration (API Key) */}
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{UI_STRINGS.settings.ai_config_title}</h3>
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-3 mb-4">
+                    <Key size={18} className="text-slate-400" />
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">{UI_STRINGS.settings.api_key_label}</label>
+                </div>
+                <div className="relative mb-3">
+                    <input 
+                        type={isApiKeyVisible ? "text" : "password"} 
+                        value={apiKey} 
+                        onChange={(e) => { setApiKey(e.target.value); setApiKeySaved(false); }} 
+                        placeholder={UI_STRINGS.settings.api_key_placeholder}
+                        className="w-full pl-4 pr-12 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                    <button 
+                        onClick={() => setIsApiKeyVisible(!isApiKeyVisible)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    >
+                        {isApiKeyVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                </div>
+                <div className="flex justify-between items-center">
+                    <p className="text-[10px] text-slate-400 font-medium max-w-[60%]">{UI_STRINGS.settings.api_key_help}</p>
+                    <button 
+                        onClick={handleSaveApiKey}
+                        disabled={apiKeySaved || !apiKey}
+                        className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${apiKeySaved ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'}`}
+                    >
+                        {apiKeySaved ? "Saved" : "Save Key"}
+                    </button>
+                </div>
+            </div>
+          </section>
+
+          {/* Customization (Theme) */}
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Appearance</h3>
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <Palette size={18} className="text-slate-400" />
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">App Theme</label>
+                    </div>
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-500" style={{ color: `var(--color-primary-500)` }}>{currentTheme}</span>
+                </div>
+                <div className="relative h-12 flex items-center">
+                     <div className="absolute inset-x-0 h-4 rounded-full" style={{ background: spectrumGradient }} />
+                     <input 
+                        type="range" 
+                        min="0" 
+                        max={themes.length - 1} 
+                        step="1"
+                        value={themes.indexOf(currentTheme)}
+                        onChange={handleSliderChange}
+                        className="relative z-10 w-full opacity-0 cursor-pointer h-full"
+                     />
+                     <div 
+                        className="absolute h-8 w-8 bg-white border-4 border-white shadow-lg rounded-full pointer-events-none transition-all duration-300"
+                        style={{ 
+                            left: `${(themes.indexOf(currentTheme) / (themes.length - 1)) * 100}%`,
+                            backgroundColor: `var(--color-primary-500)`,
+                            transform: 'translateX(-50%)'
+                        }}
+                     />
+                </div>
+                <div className="flex justify-between mt-2">
+                    {themes.filter((_, i) => i % 4 === 0).map(t => (
+                        <div key={t} className="w-1 h-1 bg-slate-300 rounded-full" />
+                    ))}
+                </div>
+            </div>
+          </section>
+
+          {/* Notifications */}
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{UI_STRINGS.settings.alerts_label}</h3>
             
-            {/* Identity & Pro Status */}
-            <section>
-                <div className="flex items-center justify-between p-6 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-[2rem] text-white shadow-xl">
-                   <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10">
-                         {isPro ? <Crown size={24} className="text-yellow-400" /> : <Smartphone size={24} />}
-                      </div>
-                      <div>
-                         <h3 className="font-black text-lg leading-none mb-1">{isPro ? "Pro Member" : "Free Plan"}</h3>
-                         <p className="text-xs text-slate-400 font-medium">{isPro ? "All features unlocked" : "Basic vault features"}</p>
-                      </div>
-                   </div>
-                   {!isPro && (
-                       <button onClick={() => setShowUpgradeConfirm(true)} className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-600/30 transition-all active:scale-95">
-                          Upgrade
-                       </button>
-                   )}
+            {/* Permission Check */}
+            {notifPermission !== 'granted' && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Bell size={18} className="text-amber-500" />
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-400">Enable notifications for alerts</span>
+                    </div>
+                    <button onClick={handleRequestNotifPermission} className="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black uppercase tracking-widest">{UI_STRINGS.settings.grant_permission_btn}</button>
                 </div>
-            </section>
+            )}
 
-             {/* API Key Configuration */}
-             <section className="space-y-4">
-                <div className="flex items-center gap-2 px-2">
-                    <Zap size={16} className="text-amber-500" />
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{UI_STRINGS.settings.ai_config_title}</h3>
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">{UI_STRINGS.settings.expiry_warning_title}</h4>
+                    <p className="text-xs text-slate-500 font-medium">{UI_STRINGS.settings.expiry_warning_hint}</p>
                 </div>
-                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700 space-y-4">
-                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">
-                        {UI_STRINGS.settings.api_key_label}
-                    </label>
-                    <div className="flex gap-2">
-                        <div className="relative flex-grow">
-                             <input 
-                                type={isApiKeyVisible ? "text" : "password"} 
-                                value={apiKey}
-                                onChange={(e) => { setApiKey(e.target.value); setApiKeySaved(false); }}
-                                placeholder={UI_STRINGS.settings.api_key_placeholder}
-                                className="w-full pl-5 pr-12 py-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
-                             />
-                             <button 
-                                onClick={() => setIsApiKeyVisible(!isApiKeyVisible)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                             >
-                                {isApiKeyVisible ? <EyeOff size={16} /> : <Eye size={16} />}
-                             </button>
-                        </div>
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                    {[1, 2, 3].map(m => (
                         <button 
-                            onClick={handleSaveApiKey}
-                            disabled={!apiKey || apiKeySaved}
-                            className={`px-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${apiKeySaved ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-blue-600 text-white shadow-lg'}`}
+                            key={m}
+                            onClick={() => handleUpdateNotifPeriod(m)}
+                            className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${notifPeriod === m ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
                         >
-                            {apiKeySaved ? "Saved" : "Save"}
+                            {m}M
                         </button>
-                    </div>
-                    <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1.5">
-                        <Lock size={10} />
-                        {UI_STRINGS.settings.api_key_help}
-                    </p>
+                    ))}
                 </div>
-            </section>
+            </div>
+          </section>
 
-            {/* Notifications */}
-            <section className="space-y-4">
-                <div className="flex items-center gap-2 px-2">
-                    <Bell size={16} className="text-blue-500" />
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{UI_STRINGS.settings.alerts_label}</h3>
-                </div>
-                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                             <h4 className="font-bold text-slate-900 dark:text-white">{UI_STRINGS.settings.expiry_warning_title}</h4>
-                             <p className="text-xs text-slate-500 dark:text-slate-400">{UI_STRINGS.settings.expiry_warning_hint}</p>
-                        </div>
-                        {notifPermission !== 'granted' && (
-                            <button onClick={handleRequestNotifPermission} className="px-4 py-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
-                                {UI_STRINGS.settings.grant_permission_btn}
-                            </button>
-                        )}
+          {/* Security */}
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{UI_STRINGS.settings.security_label}</h3>
+            
+            <button 
+                onClick={toggleBiometrics}
+                className="w-full p-5 bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center justify-between group hover:border-blue-500 transition-colors"
+            >
+                <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-2xl ${isBiometricEnrolled ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                        <Fingerprint size={20} />
                     </div>
-                    
-                    <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-                        {[1, 2, 3].map(m => (
-                            <button 
-                                key={m}
-                                onClick={() => handleUpdateNotifPeriod(m)}
-                                className={`flex-1 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${notifPeriod === m ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                    <div className="text-left">
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">{UI_STRINGS.settings.bio_login_title}</h4>
+                        <p className="text-xs text-slate-500 font-medium">{isBiometricEnrolled ? "Enabled" : "Disabled"}</p>
+                    </div>
+                </div>
+                <div className={`w-12 h-6 rounded-full p-1 transition-colors ${isBiometricEnrolled ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isBiometricEnrolled ? 'translate-x-6' : 'translate-x-0'}`} />
+                </div>
+            </button>
+
+            <button 
+                onClick={() => setShowMpinReset(true)}
+                className="w-full p-5 bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center justify-between group hover:border-blue-500 transition-colors"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-2xl">
+                        <RefreshCcw size={20} />
+                    </div>
+                    <div className="text-left">
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">{UI_STRINGS.settings.update_mpin_title}</h4>
+                        <p className="text-xs text-slate-500 font-medium">{UI_STRINGS.settings.update_mpin_hint}</p>
+                    </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-400">
+                    <ExternalLink size={14} />
+                </div>
+            </button>
+
+             <button 
+                onClick={() => setShowPrivacyScreen(true)}
+                className="w-full p-5 bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex items-center justify-between group hover:border-blue-500 transition-colors"
+            >
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-2xl">
+                        <ShieldCheck size={20} />
+                    </div>
+                    <div className="text-left">
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">{UI_STRINGS.settings.privacy_btn}</h4>
+                        <p className="text-xs text-slate-500 font-medium">{UI_STRINGS.settings.privacy_hint}</p>
+                    </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-400">
+                    <ExternalLink size={14} />
+                </div>
+            </button>
+          </section>
+
+          {/* Backup */}
+          <section className="space-y-4">
+             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">{UI_STRINGS.settings.backup_section_title}</h3>
+             
+             {backupMode === null ? (
+                <div className="grid grid-cols-2 gap-4">
+                    <button 
+                        onClick={() => setBackupMode('export')}
+                        className="p-5 bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-xl">
+                            <Download size={24} />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">{UI_STRINGS.settings.export_btn}</span>
+                    </button>
+                    <button 
+                         onClick={() => setBackupMode('import')}
+                         className="p-5 bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <div className="p-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-xl">
+                            <Upload size={24} />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">{UI_STRINGS.settings.import_btn}</span>
+                    </button>
+                </div>
+             ) : (
+                <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-[2rem] border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in duration-300">
+                    <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-sm font-black uppercase tracking-widest">{backupMode === 'export' ? UI_STRINGS.settings.export_modal_title : UI_STRINGS.settings.import_modal_title}</h4>
+                        <button onClick={() => { setBackupMode(null); setRestoreFile(null); setBackupPassword(''); }} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full"><X size={16} /></button>
+                    </div>
+
+                    <form onSubmit={backupMode === 'export' ? handleExport : handleImport} className="space-y-4">
+                        {backupMode === 'import' && (
+                            <div 
+                                onClick={handleImportClick}
+                                className={`w-full p-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-colors ${restoreFile ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10' : 'border-slate-300 dark:border-slate-600 hover:border-blue-500'}`}
                             >
-                                {m} Month{m > 1 ? 's' : ''}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </section>
+                                <input ref={fileInputRef} type="file" accept=".bin" onChange={handleFileChange} className="hidden" />
+                                {restoreFile ? (
+                                    <>
+                                        <FileLock size={32} className="text-emerald-500 mb-2" />
+                                        <span className="text-xs font-bold text-emerald-600">{restoreFile.name}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload size={32} className="text-slate-400 mb-2" />
+                                        <span className="text-xs font-bold text-slate-500">Tap to select backup file</span>
+                                    </>
+                                )}
+                            </div>
+                        )}
 
-            {/* Theme Spectrum Slider */}
-            <section className="space-y-4">
-                 <div className="flex items-center gap-2 px-2">
-                    <Palette size={16} className="text-purple-500" />
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">App Theme Spectrum</h3>
-                </div>
-                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700 space-y-4">
-                    <div className="flex justify-between items-end px-1">
-                        <div>
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Style</span>
-                            <h4 className="text-xl font-black text-slate-900 dark:text-white mt-1">{currentTheme}</h4>
-                        </div>
-                        <div 
-                            className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-700 shadow-lg" 
-                            style={{ 
-                                backgroundColor: `rgb(${THEME_PALETTES[currentTheme]?.primary?.[500]?.split(' ').join(',') || '0,0,0'})` 
-                            }} 
-                        />
-                    </div>
-                    
-                    <div className="relative pt-2 pb-1">
-                        <input 
-                            type="range" 
-                            min="0" 
-                            max={themes.length - 1} 
-                            step="1"
-                            value={themes.indexOf(currentTheme) !== -1 ? themes.indexOf(currentTheme) : 0}
-                            onChange={handleSliderChange}
-                            className="w-full h-6 rounded-full appearance-none cursor-pointer outline-none relative z-10 slider-thumb-white shadow-inner border border-slate-200 dark:border-slate-700"
-                            style={{ 
-                                background: spectrumGradient 
-                            }}
-                        />
-                        <style>{`
-                            .slider-thumb-white::-webkit-slider-thumb {
-                                -webkit-appearance: none;
-                                appearance: none;
-                                width: 28px;
-                                height: 28px;
-                                border-radius: 50%;
-                                background: #ffffff;
-                                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 0 0 4px rgba(255, 255, 255, 0.3);
-                                cursor: pointer;
-                                transition: transform 0.1s ease;
-                            }
-                            .slider-thumb-white::-webkit-slider-thumb:hover {
-                                transform: scale(1.1);
-                            }
-                            .slider-thumb-white::-moz-range-thumb {
-                                width: 28px;
-                                height: 28px;
-                                border-radius: 50%;
-                                background: #ffffff;
-                                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 0 0 4px rgba(255, 255, 255, 0.3);
-                                cursor: pointer;
-                                border: none;
-                            }
-                        `}</style>
-                    </div>
-                    <div className="flex justify-between px-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase">Slate</span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase">Rainbow</span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase">Rose</span>
-                    </div>
-                </div>
-            </section>
-
-            {/* Data Management */}
-            <section className="space-y-4">
-                <div className="flex items-center gap-2 px-2">
-                    <FileLock size={16} className="text-emerald-500" />
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{UI_STRINGS.settings.backup_section_title}</h3>
-                </div>
-                
-                {!backupMode ? (
-                    <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => setBackupMode('export')} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all group text-left">
-                            <Download size={24} className="text-slate-400 group-hover:text-blue-500 mb-4 transition-colors" />
-                            <h4 className="font-bold text-slate-700 dark:text-slate-200">{UI_STRINGS.settings.export_btn}</h4>
-                            <p className="text-[10px] text-slate-400 mt-1 font-medium">{UI_STRINGS.settings.backup_hint}</p>
-                        </button>
-                        <button onClick={() => setBackupMode('import')} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 transition-all group text-left">
-                            <Upload size={24} className="text-slate-400 group-hover:text-emerald-500 mb-4 transition-colors" />
-                            <h4 className="font-bold text-slate-700 dark:text-slate-200">{UI_STRINGS.settings.import_btn}</h4>
-                            <p className="text-[10px] text-slate-400 mt-1 font-medium">Restore .bin file</p>
-                        </button>
-                    </div>
-                ) : (
-                    <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700 animate-in fade-in slide-in-from-top-2">
-                        <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-bold text-slate-900 dark:text-white">{backupMode === 'export' ? UI_STRINGS.settings.export_modal_title : UI_STRINGS.settings.import_modal_title}</h4>
-                            <button onClick={() => { setBackupMode(null); setRestoreFile(null); setBackupPassword(''); }} className="text-xs font-bold text-slate-400 hover:text-slate-600">{UI_STRINGS.common.cancel}</button>
-                        </div>
-                        
-                        <form onSubmit={backupMode === 'export' ? handleExport : handleImport} className="space-y-4">
-                             {backupMode === 'import' && (
-                                 <div 
-                                    onClick={handleImportClick}
-                                    className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-8 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                 >
-                                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".bin" className="hidden" />
-                                    {restoreFile ? (
-                                        <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400">
-                                            <FileText size={20} />
-                                            <span className="font-bold text-sm truncate max-w-[200px]">{restoreFile.name}</span>
-                                        </div>
-                                    ) : (
-                                        <div className="text-slate-400">
-                                            <Upload size={24} className="mx-auto mb-2" />
-                                            <p className="text-xs font-bold uppercase tracking-widest">Select Backup File</p>
-                                        </div>
-                                    )}
-                                 </div>
-                             )}
-
-                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-2">{UI_STRINGS.settings.password_label}</label>
+                        <div className="space-y-2">
+                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{UI_STRINGS.settings.password_label}</label>
+                             <div className="relative">
+                                <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input 
                                     type="password" 
-                                    placeholder={backupMode === 'export' ? "Create a password" : "Enter backup password"}
                                     value={backupPassword}
                                     onChange={e => setBackupPassword(e.target.value)}
-                                    className="w-full px-5 py-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                                    required
+                                    placeholder={backupMode === 'export' ? "Create a password" : "Enter backup password"}
+                                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                                 />
-                                <p className="text-[10px] text-slate-400 mt-2">{backupMode === 'export' ? UI_STRINGS.settings.password_hint : UI_STRINGS.settings.import_password_hint}</p>
                              </div>
+                             <p className="text-[10px] text-slate-500 font-medium px-2">{backupMode === 'export' ? UI_STRINGS.settings.password_hint : UI_STRINGS.settings.import_password_hint}</p>
+                        </div>
 
-                             {backupMode === 'import' && (
-                                 <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-xl flex items-start gap-2">
-                                     <AlertTriangle size={14} className="text-amber-600 mt-0.5" />
-                                     <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-tight">{UI_STRINGS.settings.import_warning}</p>
-                                 </div>
-                             )}
+                        {backupMode === 'import' && (
+                             <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/10 text-amber-600 dark:text-amber-500 rounded-xl text-[10px] font-bold border border-amber-100 dark:border-amber-900/30">
+                                <AlertTriangle size={14} className="shrink-0" />
+                                {UI_STRINGS.settings.import_warning}
+                             </div>
+                        )}
 
-                             <button 
-                                type="submit" 
-                                disabled={isProcessingBackup || (backupMode === 'import' && !restoreFile)}
-                                className="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-                             >
-                                {isProcessingBackup ? <Loader2 size={16} className="animate-spin" /> : (backupMode === 'export' ? <Download size={16} /> : <RefreshCcw size={16} />)}
-                                <span>{backupMode === 'export' ? UI_STRINGS.settings.export_action : UI_STRINGS.settings.import_action}</span>
-                             </button>
-                        </form>
-                    </div>
-                )}
-            </section>
-
-            {/* Security */}
-            <section className="space-y-4">
-                <div className="flex items-center gap-2 px-2">
-                    <ShieldCheck size={16} className="text-slate-400" />
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{UI_STRINGS.settings.security_label}</h3>
+                        <button 
+                            type="submit" 
+                            disabled={isProcessingBackup}
+                            className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest text-white transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${backupMode === 'export' ? 'bg-blue-600 shadow-blue-500/30' : 'bg-purple-600 shadow-purple-500/30'}`}
+                        >
+                            {isProcessingBackup && <Loader2 size={14} className="animate-spin" />}
+                            <span>{backupMode === 'export' ? UI_STRINGS.settings.export_action : UI_STRINGS.settings.import_action}</span>
+                        </button>
+                    </form>
                 </div>
-                <div className="p-1 space-y-2">
-                    <button onClick={toggleBiometrics} className="w-full p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-between group hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <div className="flex items-center gap-4">
-                            <div className="p-2 bg-white dark:bg-slate-900 rounded-xl text-slate-500 group-hover:text-blue-500 transition-colors"><Fingerprint size={20} /></div>
-                            <div className="text-left">
-                                <p className="font-bold text-slate-900 dark:text-white text-sm">{UI_STRINGS.settings.bio_login_title}</p>
-                                <p className="text-[10px] text-slate-500 font-medium">{isBiometricEnrolled ? "Enabled" : "Disabled"}</p>
-                            </div>
-                        </div>
-                        <div className={`w-10 h-6 rounded-full p-1 transition-colors ${isBiometricEnrolled ? 'bg-blue-500' : 'bg-slate-200 dark:bg-slate-700'}`}>
-                            <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${isBiometricEnrolled ? 'translate-x-4' : ''}`} />
-                        </div>
-                    </button>
+             )}
+          </section>
 
-                    <button onClick={() => setShowMpinReset(true)} className="w-full p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-between group hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <div className="flex items-center gap-4">
-                            <div className="p-2 bg-white dark:bg-slate-900 rounded-xl text-slate-500 group-hover:text-blue-500 transition-colors"><Key size={20} /></div>
-                            <div className="text-left">
-                                <p className="font-bold text-slate-900 dark:text-white text-sm">{UI_STRINGS.settings.update_mpin_title}</p>
-                                <p className="text-[10px] text-slate-500 font-medium">{UI_STRINGS.settings.update_mpin_hint}</p>
-                            </div>
-                        </div>
-                        <RefreshCcw size={16} className="text-slate-400" />
-                    </button>
-
-                    <button onClick={() => setShowPrivacyScreen(true)} className="w-full p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-between group hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <div className="flex items-center gap-4">
-                            <div className="p-2 bg-white dark:bg-slate-900 rounded-xl text-slate-500 group-hover:text-blue-500 transition-colors"><Shield size={20} /></div>
-                            <div className="text-left">
-                                <p className="font-bold text-slate-900 dark:text-white text-sm">{UI_STRINGS.settings.privacy_btn}</p>
-                                <p className="text-[10px] text-slate-500 font-medium">{UI_STRINGS.settings.privacy_hint}</p>
-                            </div>
-                        </div>
-                        <ExternalLink size={16} className="text-slate-400" />
-                    </button>
-                </div>
-            </section>
-
-             {/* System Health */}
-             <section className="space-y-4">
-                <div className="flex items-center gap-2 px-2">
-                    <Activity size={16} className="text-slate-400" />
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{UI_STRINGS.settings.health_title}</h3>
-                </div>
-                {health.loading ? (
-                    <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-slate-400" /></div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-2 text-center ${health.keysSecure ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30' : 'bg-rose-50 border-rose-100'}`}>
-                            {health.keysSecure ? <CheckCircle2 size={20} className="text-emerald-500" /> : <ShieldAlert size={20} className="text-rose-500" />}
-                            <span className="text-[10px] font-black uppercase text-slate-500">{UI_STRINGS.settings.health_enc}</span>
-                        </div>
-                        <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-2 text-center ${health.storageClean ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30' : 'bg-rose-50 border-rose-100'}`}>
-                            {health.storageClean ? <CheckCircle2 size={20} className="text-emerald-500" /> : <ShieldAlert size={20} className="text-rose-500" />}
-                            <span className="text-[10px] font-black uppercase text-slate-500">{UI_STRINGS.settings.health_storage}</span>
-                        </div>
-                        <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-2 text-center ${health.aiFilterActive ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30' : 'bg-amber-50 border-amber-100'}`}>
-                            {health.aiFilterActive ? <CheckCircle2 size={20} className="text-emerald-500" /> : <AlertTriangle size={20} className="text-amber-500" />}
-                            <span className="text-[10px] font-black uppercase text-slate-500">{UI_STRINGS.settings.health_ai}</span>
-                        </div>
+          {/* Danger Zone */}
+          <section className="space-y-4">
+             <h3 className="text-[10px] font-black text-rose-400 uppercase tracking-[0.2em] px-2">{UI_STRINGS.settings.danger_zone_label}</h3>
+             
+             {!showWipeConfirm ? (
+                 <button 
+                    onClick={() => setShowWipeConfirm(true)}
+                    className="w-full p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 rounded-[2rem] text-rose-600 font-bold text-sm flex items-center justify-center gap-2 hover:bg-rose-100 dark:hover:bg-rose-900/20 transition-colors"
+                 >
+                    <Trash2 size={16} />
+                    <span>{UI_STRINGS.settings.wipe_vault_btn}</span>
+                 </button>
+             ) : (
+                <div className="p-6 bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-900/30 rounded-[2rem] text-center space-y-4 animate-in fade-in zoom-in">
+                    <ShieldAlert size={32} className="text-rose-500 mx-auto" />
+                    <div>
+                        <h4 className="text-sm font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">{UI_STRINGS.settings.wipe_confirm_text}</h4>
+                        <p className="text-xs text-rose-500 mt-1">This action cannot be undone.</p>
                     </div>
-                )}
-                {health.leaks.length > 0 && (
-                    <div className="p-4 bg-rose-50 text-rose-600 rounded-xl text-xs font-medium border border-rose-100">
-                        {UI_STRINGS.settings.health_leaks} {health.leaks.join(', ')}
+                    <div className="flex gap-3">
+                        <button onClick={() => setShowWipeConfirm(false)} className="flex-1 py-3 bg-white dark:bg-slate-800 rounded-xl text-slate-500 font-bold text-xs uppercase tracking-widest">{UI_STRINGS.common.cancel}</button>
+                        <button onClick={() => wipeEverything()} className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-rose-500/30">{UI_STRINGS.common.confirm}</button>
                     </div>
-                )}
-            </section>
+                </div>
+             )}
+          </section>
 
-             {/* Danger Zone */}
-            <section className="pt-8">
-                 {!showWipeConfirm ? (
-                     <button onClick={() => setShowWipeConfirm(true)} className="w-full p-4 rounded-2xl border-2 border-rose-100 dark:border-rose-900/30 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-colors flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest">
-                         <Trash2 size={16} />
-                         <span>{UI_STRINGS.settings.wipe_vault_btn}</span>
-                     </button>
-                 ) : (
-                     <div className="p-6 bg-rose-50 dark:bg-rose-900/10 rounded-[2rem] border-2 border-rose-100 dark:border-rose-900/30 text-center animate-in zoom-in">
-                         <h4 className="text-rose-600 dark:text-rose-400 font-black mb-4">{UI_STRINGS.settings.wipe_confirm_text}</h4>
-                         <div className="flex gap-3">
-                             <button onClick={() => setShowWipeConfirm(false)} className="flex-1 py-3 bg-white dark:bg-slate-900 rounded-xl font-bold text-slate-500 text-xs uppercase tracking-widest">{UI_STRINGS.common.cancel}</button>
-                             <button onClick={() => { wipeEverything(); onClose(); }} className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-rose-500/30">{UI_STRINGS.common.delete}</button>
-                         </div>
-                     </div>
-                 )}
-                 <p className="text-center text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mt-6">Version {APP_VERSION}</p>
-            </section>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-center">
+            <div className="flex items-center justify-center gap-2 mb-4">
+                <div className={`w-2 h-2 rounded-full ${health.keysSecure ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">System Integrity: {health.keysSecure ? "Secure" : "At Risk"}</span>
+            </div>
+            <p className="text-[10px] font-bold text-slate-400">
+                {UI_STRINGS.common.app_name} v{APP_VERSION} • {isPro ? "Pro Edition" : "Core Edition"}
+            </p>
         </div>
       </div>
     </div>
