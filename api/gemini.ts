@@ -1,4 +1,6 @@
 
+
+
 import { GoogleGenAI } from "@google/genai";
 
 export const config = {
@@ -108,8 +110,7 @@ export default async function handler(req: any, res: any) {
     const model = 'gemini-2.5-flash';
 
     let promptParts: any[] = [];
-    let schemaType: any = undefined;
-
+    
     switch (mode) {
       case 'suggest': {
         const text = payload?.text || "";
@@ -205,10 +206,44 @@ export default async function handler(req: any, res: any) {
         break;
       }
 
+      case 'generate_image': {
+        // Nano Banana / Flash Image Generation
+        const { prompt } = payload || {};
+        const imageModel = 'gemini-2.5-flash-image';
+        
+        const imageResponse = await ai.models.generateContent({
+            model: imageModel,
+            contents: { parts: [{ text: prompt }] },
+            config: {
+                imageConfig: {
+                    aspectRatio: "16:9" 
+                }
+            }
+        });
+
+        // Extract image from parts
+        let base64Image = null;
+        if (imageResponse.candidates && imageResponse.candidates[0].content.parts) {
+            for (const part of imageResponse.candidates[0].content.parts) {
+                if (part.inlineData) {
+                    base64Image = part.inlineData.data;
+                    break;
+                }
+            }
+        }
+
+        if (base64Image) {
+            return res.status(200).json({ success: true, data: base64Image });
+        } else {
+             return res.status(200).json({ success: false, message: "No image generated" });
+        }
+      }
+
       default:
         return res.status(200).json({ success: false, message: "Invalid mode" });
     }
 
+    // Default Handling for Text Models (generate_image is handled inside switch)
     const response = await ai.models.generateContent({
       model: model,
       contents: { parts: promptParts },

@@ -3,9 +3,10 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { CardFormData, Benefit, CreditCard } from '../types';
 import { fetchCardBenefits, getCardSuggestions } from '../services/geminiService';
 import { getDecryptedApiKey } from '../utils/storage';
-import { Sparkles, Loader2, X, Camera, CheckCircle2, AlertCircle, Hash, Lock, ShieldAlert, Zap, Search, CalendarOff } from 'lucide-react';
+import { Sparkles, Loader2, X, Camera, CheckCircle2, AlertCircle, Hash, Lock, ShieldAlert, Zap, Search, Palette, ImageIcon } from 'lucide-react';
 import CardScanner from './CardScanner';
 import CardNameInput from './CardNameInput';
+import CardArtStudio from './CardArtStudio';
 
 interface CardFormProps {
   onSave: (data: CardFormData, benefits: Benefit[]) => void;
@@ -22,6 +23,7 @@ const getNormalizedNumber = (num: string) => num.replace(/[\s-]/g, '');
 const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, cards = [], masterKey, onOpenSettings }) => {
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showArtStudio, setShowArtStudio] = useState(false);
   const [pendingBenefits, setPendingBenefits] = useState<Omit<Benefit, 'id'>[]>([]);
   const [decryptedApiKey, setDecryptedApiKey] = useState<string | undefined>(undefined);
   
@@ -41,7 +43,8 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
     waiverTarget: 0,
     currentSpend: 0,
     bestOffer: '',
-    status: 'active'
+    status: 'active',
+    customSkin: ''
   });
 
   const [isFetching, setIsFetching] = useState(false);
@@ -75,7 +78,8 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
         waiverTarget: initialData.waiverTarget,
         currentSpend: initialData.currentSpend,
         bestOffer: initialData.bestOffer || '',
-        status: initialData.status || 'active'
+        status: initialData.status || 'active',
+        customSkin: initialData.customSkin || ''
       });
       setFetchedBenefits(initialData.benefits);
     }
@@ -232,6 +236,7 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
       )}
 
       {showScanner && <CardScanner onScanComplete={handleScanComplete} onCancel={handleScannerCancel} masterKey={masterKey} onOpenSettings={onOpenSettings} />}
+      {showArtStudio && <CardArtStudio onApply={(img) => { setFormData(prev => ({ ...prev, customSkin: img })); setShowArtStudio(false); }} onCancel={() => setShowArtStudio(false)} masterKey={masterKey} onOpenSettings={onOpenSettings} />}
 
       <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border border-slate-100 dark:border-slate-800 flex flex-col">
         <div className="p-8 pb-0">
@@ -245,18 +250,26 @@ const CardForm: React.FC<CardFormProps> = ({ onSave, onCancel, initialData, card
             </button>
           </div>
 
-          {!initialData && (
-            <div className="mb-8">
+          <div className="grid grid-cols-2 gap-4 mb-8">
+              {!initialData && (
+                <button
+                    type="button"
+                    onClick={() => setShowScanner(true)}
+                    className="flex flex-col items-center justify-center gap-2 py-5 rounded-3xl bg-slate-900 dark:bg-slate-950 text-white font-black shadow-xl hover:bg-black transition-all active:scale-95 group border border-white/5 uppercase text-[10px] tracking-[0.1em]"
+                >
+                    <Camera size={20} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                    <span>Scan Card</span>
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setShowScanner(true)}
-                className="w-full flex items-center justify-center gap-3 py-6 rounded-3xl bg-slate-900 dark:bg-slate-950 text-white font-black shadow-xl hover:bg-black transition-all active:scale-95 group border border-white/5 uppercase text-xs tracking-[0.2em]"
+                onClick={() => setShowArtStudio(true)}
+                className={`flex flex-col items-center justify-center gap-2 py-5 rounded-3xl font-black shadow-xl transition-all active:scale-95 group border border-white/5 uppercase text-[10px] tracking-[0.1em] ${formData.customSkin ? 'bg-purple-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
               >
-                <Camera size={24} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                <span>AI Visual Capture</span>
+                {formData.customSkin ? <ImageIcon size={20} className="text-white" /> : <Palette size={20} className="text-purple-500" />}
+                <span>{formData.customSkin ? "Edit Skin" : "Design Skin"}</span>
               </button>
-            </div>
-          )}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 pt-0 space-y-8 text-left">

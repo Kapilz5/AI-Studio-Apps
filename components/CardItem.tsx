@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CreditCard as CardType } from '../types';
@@ -204,6 +205,22 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
     return <LucideCreditCard size={28} className="text-white/60 drop-shadow-md shrink-0" />;
   };
 
+  // Background Style Logic
+  const getBackgroundStyle = () => {
+    if (isExpired) return { backgroundColor: '#475569' };
+    
+    if (card.customSkin) {
+        return {
+            backgroundImage: `url(data:image/png;base64,${card.customSkin})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+        };
+    }
+    
+    return undefined; // Falls back to class-based gradient
+  };
+
   return (
     <div 
         className={`relative overflow-visible animate-in fade-in slide-in-from-bottom-2 duration-500 group text-left ${isExpired ? 'opacity-80 grayscale-[0.6]' : ''}`}
@@ -244,15 +261,20 @@ const CardItem: React.FC<CardItemProps> = ({ card, onDelete, onEdit, onUpdateSpe
         <div className="relative transition-all duration-500 flex flex-col perspective-1000">
           <div 
             ref={cardRef}
-            className={`relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${isExpired ? 'bg-slate-600 border border-slate-500' : 'card-gradient'} ${expiring ? 'ring-4 ring-rose-400/50 shadow-rose-500/30 scale-[1.02]' : ''}`}
+            className={`relative p-8 rounded-[2.5rem] shadow-2xl text-white aspect-[1.58/1] flex flex-col justify-between overflow-hidden ${!card.customSkin && !isExpired ? 'card-gradient' : ''} ${expiring ? 'ring-4 ring-rose-400/50 shadow-rose-500/30 scale-[1.02]' : ''}`}
             style={{
+                ...getBackgroundStyle(),
                 transform: `rotateX(${rotate.x}deg) rotateY(${rotate.y}deg)`,
                 transition: isDragging ? 'none' : 'transform 0.1s ease-out',
                 transformStyle: 'preserve-3d',
                 boxShadow: `${-rotate.y * 2}px ${rotate.x * 2}px 30px rgba(0,0,0,0.3)`
             }}
           >
-            
+            {/* Custom Skin Overlay for text readability */}
+            {card.customSkin && !isExpired && (
+                <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
+            )}
+
             {/* Dynamic Glare/Reflection Effect */}
             {!isExpired && (
                 <div 

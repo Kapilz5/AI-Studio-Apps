@@ -1,5 +1,7 @@
 
 
+
+
 export const UI_STRINGS = {
   common: {
     app_name: "My Cards",
@@ -45,6 +47,7 @@ export const UI_STRINGS = {
     update_title: "Update Card",
     encrypted_subtitle: "Encrypted Vault",
     visual_capture: "AI Visual Capture",
+    card_studio: "Card Art Studio",
     product_tier: "Product Tier",
     product_name: "Product Name",
     product_name_placeholder: "e.g. HDFC Millennia",
@@ -68,6 +71,17 @@ export const UI_STRINGS = {
     ai_service_unavailable: "AI service unavailable. Please check your internet connection.",
     ai_no_perks_found: "AI check completed. No official benefits found for this specific name.",
     ai_setup_incomplete: "AI service setup incomplete."
+  },
+  studio: {
+    title: "AI Card Studio",
+    subtitle: "Design custom skins",
+    prompt_label: "Describe your design",
+    prompt_placeholder: "e.g. Matte black titanium, Neon cyberpunk city, Golden lion crest...",
+    generate_btn: "Generate Art",
+    generating: "Dreaming...",
+    apply_skin: "Apply Skin",
+    try_again: "Re-roll",
+    hint: "Uses gemini-2.5-flash-image to create unique card backgrounds."
   },
   security: {
     setup_title: "Security Setup",

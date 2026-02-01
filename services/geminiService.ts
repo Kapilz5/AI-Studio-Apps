@@ -1,4 +1,6 @@
 
+
+
 import { Benefit, CardCategory, CreditCard, MultiAdvisorResult } from "../types";
 
 // Helper to sanitize input strings (remove control characters)
@@ -123,4 +125,16 @@ export const analyzeMultiPortfolioRecommendation = async (targetCardNames: strin
     console.error("Advisor failed:", error);
     return []; // Return empty to prevent UI crash
   }
+};
+
+export const generateCardArt = async (prompt: string, apiKey: string): Promise<string | null> => {
+    try {
+        const data = await callGeminiAPI('generate_image', {
+            prompt: sanitizeInput(prompt)
+        }, apiKey);
+        return data as string; // Base64 string
+    } catch (error) {
+        console.error("Image generation failed:", error);
+        return null;
+    }
 };

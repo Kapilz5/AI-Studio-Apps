@@ -1,5 +1,6 @@
 
 
+
 export type BenefitCategory = 'Shopping' | 'Food' | 'Entertainment' | 'Fuel' | 'Forex' | 'Travel' | 'Other';
 export type CardCategory = 'Credit' | 'Debit';
 export type AppTheme = 
@@ -48,6 +49,7 @@ export interface CreditCard {
   bestOffer?: string;
   benefits: Benefit[];
   status: 'active' | 'expired';
+  customSkin?: string; // Base64 image data for custom card background
 }
 
 export interface CardFormData {
@@ -67,6 +69,7 @@ export interface CardFormData {
   currentSpend: number;
   bestOffer?: string;
   status: 'active' | 'expired';
+  customSkin?: string;
 }
 
 export interface BackupPayload {
